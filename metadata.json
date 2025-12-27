@@ -1,0 +1,8 @@
+{
+  "name": "J.A.R.V.I.S. OS",
+  "description": "A futuristic AI assistant inspired by Tony Stark's JARVIS, featuring real-time voice interaction, holographic UI, and system monitoring.",
+  "requestFramePermissions": [
+    "microphone",
+    "geolocation"
+  ]
+}
