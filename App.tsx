@@ -601,11 +601,6 @@ const App: React.FC = () => {
         </div>
       )}
 
-      <div className="absolute inset-0 flex items-center justify-center opacity-20 pointer-events-none">
-         <div className={`w-[300px] h-[300px] lg:w-[800px] lg:h-[800px] border-2 rounded-full animate-[spin_60s_linear_infinite] border-dashed transition-colors duration-500 ${systemAlert ? 'border-red-500' : 'border-cyan-500'}`}></div>
-         <div className={`absolute w-[200px] h-[200px] lg:w-[600px] lg:h-[600px] border rounded-full animate-[spin_40s_linear_infinite_reverse] transition-colors duration-500 ${systemAlert ? 'border-red-400' : 'border-cyan-400'}`}></div>
-      </div>
-
       <div className="lg:hidden absolute top-0 left-0 w-full p-4 flex justify-between items-center z-50">
         <h1 className="font-orbitron text-sm tracking-widest text-glow flex items-center gap-2"><ShieldCheck className="w-4 h-4" /> J.A.R.V.I.S.</h1>
         <button onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} className="p-2 bg-cyan-500/10 border border-cyan-500/30 rounded-md">
@@ -613,7 +608,7 @@ const App: React.FC = () => {
         </button>
       </div>
 
-      <div className="relative z-10 flex flex-col lg:flex-row h-full w-full p-4 lg:p-6 gap-4 lg:gap-6 pt-16 lg:pt-6">
+      <div className="relative z-10 flex flex-col lg:flex-row h-full w-full p-4 lg:p-6 gap-4 lg:gap-6 pt-16 lg:pt-6 overflow-hidden">
         
         <div className={`flex-col w-full lg:w-72 gap-4 transition-all duration-500 ${isMobileMenuOpen ? 'flex absolute inset-0 bg-slate-950/95 z-40 p-6 pt-20' : (!showStats && !isMobileMenuOpen) ? 'hidden' : 'hidden lg:flex'}`}>
           <div className="bg-slate-900/40 border border-cyan-500/30 rounded-lg p-4 backdrop-blur-md shadow-lg shadow-cyan-500/10">
@@ -651,33 +646,53 @@ const App: React.FC = () => {
           </div>
         </div>
 
-        <div className="flex-1 flex flex-col items-center justify-center relative py-8 lg:py-0">
-          <div className="relative w-64 h-64 lg:w-96 lg:h-96 flex items-center justify-center">
-             <canvas ref={canvasRef} width={500} height={500} className="absolute inset-0 w-full h-full pointer-events-none z-10 opacity-60" />
-             
-             <div className={`absolute w-32 h-32 lg:w-56 lg:h-56 rounded-full transition-all duration-300 ${isVoiceActive ? 'bg-green-500/20 scale-150 blur-3xl' : (isAudioDetected || systemAlert) ? 'bg-cyan-500/30 scale-150 blur-3xl' : 'bg-transparent'}`}></div>
-             
-             <div className={`w-24 h-24 lg:w-40 lg:h-40 rounded-full flex items-center justify-center transition-all duration-500 shadow-2xl relative z-20 ${isVoiceActive ? 'bg-green-500 shadow-[0_0_80px_rgba(34,197,94,1)] scale-110 border-4 border-green-300' : systemAlert ? 'bg-red-600 shadow-[0_0_50px_rgba(239,68,68,0.6)] border-2 border-red-400' : isAudioDetected ? 'bg-cyan-600 shadow-[0_0_50px_rgba(6,182,212,0.8)] scale-105 border-2 border-cyan-300' : 'bg-slate-900 border-2 border-cyan-500/30'}`}>
-                <Zap className={`w-12 h-12 lg:w-20 lg:h-20 transition-colors duration-500 ${isVoiceActive ? 'text-white' : 'text-cyan-800'}`} />
-                {isVoiceActive && <div className="absolute inset-0 flex items-center justify-center"><div className="w-full h-full border-4 border-green-400 rounded-full animate-ping opacity-20"></div></div>}
-             </div>
+        {/* Central Display Area: Refined sizing for better mobile focal point and spacing */}
+        <div className="flex-1 relative flex items-center justify-center min-h-0 py-4 lg:py-0">
+          
+          {/* Unified Co-Centered Container */}
+          <div className="relative w-full h-full flex items-center justify-center">
+            
+            {/* Background HUD Graphics - Rescaled to pull inwards and give breathing room to labels */}
+            <div className="absolute inset-0 flex items-center justify-center opacity-20 pointer-events-none z-0 overflow-visible">
+               <div className={`absolute w-[70vmin] h-[70vmin] border border-cyan-500/10 rounded-full animate-[spin_180s_linear_infinite]`}></div>
+               <div className={`absolute w-[58vmin] h-[58vmin] border-2 rounded-full animate-[spin_60s_linear_infinite] border-dashed transition-colors duration-500 ${systemAlert ? 'border-red-500' : 'border-cyan-500'}`}></div>
+               <div className={`absolute w-[46vmin] h-[46vmin] border rounded-full animate-[spin_40s_linear_infinite_reverse] transition-colors duration-500 ${systemAlert ? 'border-red-400' : 'border-cyan-400'}`}></div>
+               <div className={`absolute w-[34vmin] h-[34vmin] border border-cyan-500/5 rounded-full animate-[pulse_4s_ease-in-out_infinite]`}></div>
+            </div>
 
-             <div className="absolute -bottom-24 lg:-bottom-28 left-1/2 -translate-x-1/2 flex flex-col items-center gap-3 w-full">
-                <div className={`px-4 lg:px-6 py-2 rounded-full text-[9px] lg:text-[11px] font-orbitron border transition-all duration-500 flex items-center gap-2 tracking-[0.2em] whitespace-nowrap ${status === ConnectionStatus.CONNECTED ? 'bg-green-500/20 border-green-500 text-green-400 shadow-[0_0_20px_rgba(34,197,94,0.4)]' : status === ConnectionStatus.CONNECTING ? 'bg-yellow-500/20 border-yellow-500 text-yellow-400 animate-pulse' : systemAlert ? 'bg-red-500/20 border-red-500 text-red-400 animate-pulse shadow-[0_0_20px_rgba(239,68,68,0.4)]' : isWakeWordListening ? 'bg-cyan-500/10 border-cyan-500/50 text-cyan-300' : 'bg-slate-500/10 border-slate-500/50 text-slate-500'}`}>
-                  <div className={`w-1.5 h-1.5 lg:w-2 lg:h-2 rounded-full ${status === ConnectionStatus.CONNECTED ? 'bg-green-400 animate-ping' : 'bg-current'}`}></div>
-                  {isVoiceActive ? 'UPLINK SECURED' : systemAlert ? 'SYSTEM_OVERRIDE' : isWakeWordListening ? (isWakeWordSupported ? 'LISTENING: "HELLO JARVIS"' : 'MIC ACTIVE') : 'CORE IN STANDBY'}
-                </div>
-                <div className="flex gap-4 lg:gap-6 items-center">
-                   <div className="text-[8px] lg:text-[10px] text-cyan-700 flex items-center gap-1.5 font-orbitron uppercase tracking-widest"><MapPin className="w-2.5 h-2.5 lg:w-3 lg:h-3" /> GPS_LOCKED</div>
-                  <div className="h-4 w-[1px] bg-cyan-500/20"></div>
-                  <button onClick={() => { shouldRestartRecognition.current = true; startWakeWordDetection(); }} className="text-[8px] lg:text-[10px] text-cyan-900 hover:text-cyan-400 transition-colors flex items-center gap-1.5 font-orbitron tracking-tighter"><RefreshCw className="w-2.5 h-2.5 lg:w-3 lg:h-3" /> RESET_TRIGGER</button>
-                </div>
-             </div>
+            {/* Core Visualizer Component - Rescaled to remain proportional to the new ring sizes */}
+            <div className="relative w-[28vmin] h-[28vmin] min-w-[130px] min-h-[130px] max-w-[280px] max-h-[280px] flex items-center justify-center z-10">
+               <canvas ref={canvasRef} width={500} height={500} className="absolute inset-0 w-full h-full pointer-events-none z-10 opacity-80" />
+               
+               {/* Dynamic Glow Layer */}
+               <div className={`absolute w-[110%] h-[110%] rounded-full transition-all duration-300 ${isVoiceActive ? 'bg-green-500/20 scale-125 blur-3xl' : (isAudioDetected || systemAlert) ? 'bg-cyan-500/30 scale-125 blur-3xl' : 'bg-transparent'}`}></div>
+               
+               {/* Main Zap Icon Hub */}
+               <div className={`w-[44%] h-[44%] rounded-full flex items-center justify-center transition-all duration-500 shadow-2xl relative z-20 ${isVoiceActive ? 'bg-green-500 shadow-[0_0_60px_rgba(34,197,94,1)] scale-110 border-2 border-green-300' : systemAlert ? 'bg-red-600 shadow-[0_0_40px_rgba(239,68,68,0.6)] border border-red-400' : isAudioDetected ? 'bg-cyan-600 shadow-[0_0_40px_rgba(6,182,212,0.8)] scale-105 border border-cyan-300' : 'bg-slate-900 border border-cyan-500/30'}`}>
+                  <Zap className={`w-1/2 h-1/2 transition-colors duration-500 ${isVoiceActive ? 'text-white' : 'text-cyan-800'}`} />
+                  {isVoiceActive && <div className="absolute inset-0 flex items-center justify-center"><div className="w-full h-full border-2 border-green-400 rounded-full animate-ping opacity-20"></div></div>}
+               </div>
+
+               {/* Status Badge - Pushed further down to ensure it clears the HUD graphics and creates a clean layout */}
+               <div className="absolute top-[150%] left-1/2 -translate-x-1/2 flex flex-col items-center gap-5 w-full">
+                  <div className={`px-5 py-2.5 rounded-full text-[10px] lg:text-[11px] font-orbitron border transition-all duration-500 flex items-center gap-2 tracking-[0.2em] whitespace-nowrap bg-black/70 backdrop-blur-md shadow-2xl ${status === ConnectionStatus.CONNECTED ? 'border-green-500 text-green-400 shadow-[0_0_20px_rgba(34,197,94,0.4)]' : status === ConnectionStatus.CONNECTING ? 'border-yellow-500 text-yellow-400 animate-pulse' : systemAlert ? 'border-red-500 text-red-400 animate-pulse shadow-[0_0_20px_rgba(239,68,68,0.4)]' : isWakeWordListening ? 'border-cyan-500/50 text-cyan-300' : 'border-slate-500/50 text-slate-500'}`}>
+                    <div className={`w-1.5 h-1.5 rounded-full ${status === ConnectionStatus.CONNECTED ? 'bg-green-400 animate-ping' : 'bg-current'}`}></div>
+                    {isVoiceActive ? 'UPLINK SECURED' : systemAlert ? 'SYSTEM_OVERRIDE' : isWakeWordListening ? (isWakeWordSupported ? 'LISTENING: "HELLO JARVIS"' : 'MIC ACTIVE') : 'CORE IN STANDBY'}
+                  </div>
+                  <div className="flex gap-4 lg:gap-6 items-center">
+                     <div className="text-[8px] lg:text-[10px] text-cyan-800 flex items-center gap-1.5 font-orbitron uppercase tracking-widest"><MapPin className="w-2.5 h-2.5 lg:w-3 lg:h-3" /> GPS_LOCKED</div>
+                    <div className="h-4 w-[1px] bg-cyan-500/10"></div>
+                    <button onClick={() => { shouldRestartRecognition.current = true; startWakeWordDetection(); }} className="text-[8px] lg:text-[10px] text-cyan-900 hover:text-cyan-400 transition-colors flex items-center gap-1.5 font-orbitron tracking-tighter"><RefreshCw className="w-2.5 h-2.5 lg:w-3 lg:h-3" /> RESET_TRIGGER</button>
+                  </div>
+               </div>
+            </div>
+
           </div>
         </div>
 
+        {/* Control & Log Panel */}
         <div className={`w-full lg:w-80 flex flex-col gap-4 transition-all duration-500 ${isMobileMenuOpen ? 'hidden' : (!showLogs && !isMobileMenuOpen) ? 'hidden' : 'flex'}`}>
-          <div className="bg-slate-900/40 border border-cyan-500/30 rounded-lg h-40 lg:h-auto lg:flex-1 backdrop-blur-md flex flex-col overflow-hidden shadow-xl">
+          <div className="bg-slate-900/40 border border-cyan-500/30 rounded-lg h-44 lg:h-auto lg:flex-1 backdrop-blur-md flex flex-col overflow-hidden shadow-xl">
             <div className="p-3 border-b border-cyan-500/20 bg-cyan-500/5 flex justify-between items-center">
               <h2 className="font-orbitron text-[10px] lg:text-xs flex items-center gap-2 text-glow uppercase tracking-wider"><MessageSquare className="w-4 h-4 text-cyan-400" /> System_Logs</h2>
               <span className="text-[8px] lg:text-[10px] font-mono opacity-40">UTC-OS4.5</span>
