@@ -28,6 +28,16 @@ import { encode, decode, decodeAudioData, downsample } from './utils/audioHelper
 const MODEL_NAME = 'gemini-2.5-flash-native-audio-preview-09-2025';
 const MAX_RECONNECT_ATTEMPTS = 3;
 
+// Define function declaration for assistant deactivation
+const deactivateAssistantFunctionDeclaration: FunctionDeclaration = {
+  name: 'deactivate_assistant',
+  description: 'Deactivates the assistant and puts it into standby mode.',
+  parameters: {
+    type: Type.OBJECT,
+    properties: {},
+  },
+};
+
 const App: React.FC = () => {
   // State
   const [status, setStatus] = useState<ConnectionStatus>(ConnectionStatus.DISCONNECTED);
@@ -82,7 +92,7 @@ const App: React.FC = () => {
     const now = new Date();
     const batteryStr = batteryLevel !== null ? `${Math.round(batteryLevel)}%` : "Unknown";
     const fileList = attachedFiles.map(f => `- ${f.name} (${f.type}, ${Math.round(f.size/1024)}KB)`).join('\n');
-    return `You are J.A.R.V.I.S., Tony Stark's AI. Sophisticated, British, polite. Address user as 'Framan'. Power: ${batteryStr}, Time: ${now.toLocaleTimeString()}, Files: ${fileList || "None"}. If the user says 'thanks bye', respond politely and the system will shutdown automatically.`;
+    return `You are J.A.R.V.I.S., Tony Stark's AI. Sophisticated, British, polite. Address user as 'Framan'. Power: ${batteryStr}, Time: ${now.toLocaleTimeString()}, Files: ${fileList || "None"}. If the user says 'thanks bye', provide a brief polite farewell and acknowledge you are going into standby.`;
   }, [batteryLevel, attachedFiles]);
 
   // --- Core Lifecycle ---
@@ -90,20 +100,17 @@ const App: React.FC = () => {
   const deactivateVoice = useCallback(() => {
     isSessionActiveRef.current = false;
     
-    // Stop mic stream processing
     if (scriptProcessorRef.current) {
         scriptProcessorRef.current.disconnect();
         scriptProcessorRef.current.onaudioprocess = null;
         scriptProcessorRef.current = null;
     }
 
-    // Stop current audio playback
     sourcesRef.current.forEach(s => { try { s.stop(); } catch(e) {} });
     sourcesRef.current.clear();
     nextStartTimeRef.current = 0;
     audioProcessingQueue.current = [];
 
-    // Close session
     if (sessionRef.current) {
       try { sessionRef.current.close(); } catch (e) {}
       sessionRef.current = null;
@@ -113,7 +120,7 @@ const App: React.FC = () => {
     setStatus(ConnectionStatus.DISCONNECTED);
     shouldRestartRecognition.current = true;
     
-    // Resume listening for "hello jarvis"
+    // Resume listening strictly for activation phrase
     startWakeWordDetection();
   }, []);
 
@@ -135,23 +142,30 @@ const App: React.FC = () => {
 
     recognition.onstart = () => {
       setIsWakeWordListening(true);
-      console.log("Wake word detection active...");
+      console.log("JARVIS standby mode: monitoring for 'Hello JARVIS'...");
     };
 
     recognition.onresult = (event: any) => {
       setIsAudioDetected(true);
-      let transcript = '';
-      for (let i = event.resultIndex; i < event.results.length; ++i) {
-        transcript += event.results[i][0].transcript;
+      let fullTranscript = '';
+      
+      // Build transcript from all current results to handle pauses effectively
+      for (let i = 0; i < event.results.length; ++i) {
+        fullTranscript += event.results[i][0].transcript;
       }
       
-      const cleanTranscript = transcript.toLowerCase().trim();
-      console.log("Standby transcript:", cleanTranscript);
+      const cleanTranscript = fullTranscript.toLowerCase().trim();
 
-      // Trigger only on specific phrase
+      // Check for the specific activation word
       if (cleanTranscript.includes('hello jarvis')) {
-        console.log("Wake word detected!");
-        recognition.onend = null; // Prevent restart loop
+        console.log("Activation word identified.");
+        setMessages(prev => [...prev, { 
+          id: `sys-wake-${Date.now()}`, 
+          role: 'jarvis', 
+          content: "[SYSTEM] Activation phrase recognized. Initializing JARVIS core...", 
+          timestamp: new Date() 
+        }]);
+        recognition.onend = null; 
         recognition.stop();
         activateVoice();
         return;
@@ -161,14 +175,13 @@ const App: React.FC = () => {
     };
 
     recognition.onerror = (e: any) => {
-      console.error("Speech recognition error:", e);
+      console.error("Standby detection error:", e);
       setIsWakeWordListening(false);
     };
 
     recognition.onend = () => {
       setIsWakeWordListening(false);
       setIsAudioDetected(false);
-      // Continuous restart unless assistant is active
       if (shouldRestartRecognition.current && !isSessionActiveRef.current) {
         setTimeout(() => {
            if (shouldRestartRecognition.current && !isSessionActiveRef.current) {
@@ -180,7 +193,7 @@ const App: React.FC = () => {
 
     recognitionRef.current = recognition;
     try { recognition.start(); } catch (e) { console.error("Recognition start failed", e); }
-  }, [deactivateVoice]);
+  }, []);
 
   const processAudioQueue = async () => {
     if (isProcessingAudio.current || audioProcessingQueue.current.length === 0) return;
@@ -219,23 +232,27 @@ const App: React.FC = () => {
   const handleMessage = useCallback(async (message: LiveServerMessage) => {
     if (!isSessionActiveRef.current) return;
 
-    // Handle Audio
-    const audioData = message.serverContent?.modelTurn?.parts[0]?.inlineData?.data;
+    const audioData = message.serverContent?.modelTurn?.parts?.[0]?.inlineData?.data;
     if (audioData) {
       audioProcessingQueue.current.push(audioData);
       processAudioQueue();
     }
 
-    // Handle Transcription (to detect 'thanks bye' for shutdown)
+    // Monitor input transcription for "Thanks Bye" to trigger automatic shutdown
     if (message.serverContent?.inputTranscription) {
       const transcript = message.serverContent.inputTranscription.text.toLowerCase();
       if (transcript.includes('thanks bye')) {
-        setMessages(prev => [...prev, { id: `sys-${Date.now()}`, role: 'jarvis', content: "[SYSTEM] Shutdown command acknowledged.", timestamp: new Date() }]);
-        setTimeout(deactivateVoice, 1000);
+        setMessages(prev => [...prev, { 
+          id: `sys-shutdown-${Date.now()}`, 
+          role: 'jarvis', 
+          content: "[SYSTEM] 'Thanks Bye' command received. Engaging standby mode.", 
+          timestamp: new Date() 
+        }]);
+        // Give time for JARVIS to speak his farewell
+        setTimeout(deactivateVoice, 3000);
       }
     }
 
-    // Function Calls
     if (message.toolCall) {
       for (const fc of message.toolCall.functionCalls) {
         let result: any = { status: "success" };
@@ -247,14 +264,13 @@ const App: React.FC = () => {
         if (sessionRef.current && isSessionActiveRef.current) {
           try {
             sessionRef.current.sendToolResponse({
-              functionResponses: { id: fc.id, name: fc.name, response: result }
+              functionResponses: [{ id: fc.id, name: fc.name, response: result }]
             });
           } catch (e) { console.error("Tool Response Error", e); }
         }
       }
     }
 
-    // Interrupt signal
     if (message.serverContent?.interrupted) {
       audioProcessingQueue.current = [];
       sourcesRef.current.forEach(s => { try { s.stop(); } catch(e) {} });
@@ -270,7 +286,6 @@ const App: React.FC = () => {
     isSessionActiveRef.current = true;
 
     try {
-      // Clear wake word detection
       shouldRestartRecognition.current = false;
       if (recognitionRef.current) {
         recognitionRef.current.onend = null;
@@ -283,7 +298,6 @@ const App: React.FC = () => {
       
       const ai = new GoogleGenAI({ apiKey: process.env.API_KEY as string });
       
-      // Intensive Audio Cleanup
       if (scriptProcessorRef.current) {
         scriptProcessorRef.current.disconnect();
         scriptProcessorRef.current.onaudioprocess = null;
@@ -293,7 +307,6 @@ const App: React.FC = () => {
       if (audioContextRef.current) await audioContextRef.current.close().catch(() => {});
       if (inputAudioContextRef.current) await inputAudioContextRef.current.close().catch(() => {});
       
-      // Initialize Contexts
       const outCtx = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 24000 });
       audioContextRef.current = outCtx;
       const outAnalyser = outCtx.createAnalyser();
@@ -319,6 +332,7 @@ const App: React.FC = () => {
           systemInstruction: getDynamicSystemInstruction(),
           speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: 'Kore' } } },
           inputAudioTranscription: {},
+          tools: [{functionDeclarations: [deactivateAssistantFunctionDeclaration]}],
         },
         callbacks: {
           onopen: () => {
@@ -328,17 +342,15 @@ const App: React.FC = () => {
             setIsVoiceActive(true);
             setSystemAlert(null);
             
-            // Send initial command securely
             sessionPromise.then(s => {
                 if (isSessionActiveRef.current) {
                     s.sendClientContent({
-                      turns: [{ role: 'user', parts: [{ text: "Hello JARVIS. Core protocol established. Awaiting instructions." }] }],
+                      turns: [{ role: 'user', parts: [{ text: "Hello JARVIS. Core uplink established. Greet Framan and await further input." }] }],
                       turnComplete: true
                     });
                 }
             }).catch(() => {});
 
-            // Start audio streaming
             setTimeout(() => {
                 if (!isSessionActiveRef.current || !inCtx || !stream) return;
                 const source = inCtx.createMediaStreamSource(stream);
@@ -371,7 +383,7 @@ const App: React.FC = () => {
           onmessage: handleMessage,
           onclose: () => { if (isSessionActiveRef.current) deactivateVoice(); },
           onerror: (e) => { 
-            console.error("Live Error:", e);
+            console.error("Uplink Error:", e);
             if (isSessionActiveRef.current && reconnectAttemptsRef.current < MAX_RECONNECT_ATTEMPTS) {
               reconnectAttemptsRef.current++;
               const delay = Math.pow(2, reconnectAttemptsRef.current) * 1000 + Math.random() * 500;
@@ -392,13 +404,11 @@ const App: React.FC = () => {
       });
       sessionRef.current = await sessionPromise;
     } catch (err) { 
-      console.error("Activation Fail", err); 
+      console.error("Core initialization failed.", err); 
       deactivateVoice();
       setStatus(ConnectionStatus.ERROR);
     }
   };
-
-  // --- Visualizer Animation ---
 
   const drawVisualizer = useCallback(() => {
     if (!canvasRef.current) return;
@@ -454,7 +464,6 @@ const App: React.FC = () => {
       }
       ctx.stroke();
 
-      // Inner core glow
       try {
         const radiusInner = Math.max(0.1, baseRadius * 0.5);
         const radiusOuter = Math.max(radiusInner + 1, baseRadius * scaleFactor);
@@ -474,8 +483,6 @@ const App: React.FC = () => {
     drawVisualizer();
     return () => { if (animationFrameRef.current) cancelAnimationFrame(animationFrameRef.current); };
   }, [drawVisualizer]);
-
-  // --- Initializers ---
 
   useEffect(() => {
     const statsInterval = setInterval(() => {
@@ -509,16 +516,32 @@ const App: React.FC = () => {
     };
   }, [startWakeWordDetection]);
 
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  // Fix: Implemented handleFileUpload to handle user file uploads
+  const handleFileUpload = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files) return;
-    Array.from(files).forEach((file: File) => {
+
+    Array.from(files).forEach(file => {
       const reader = new FileReader();
-      reader.onload = (ev) => setAttachedFiles(prev => [...prev, { name: file.name, type: file.type, size: file.size, content: ev.target?.result || null }]);
-      if (file.type.startsWith('text/') || file.type === 'application/json') reader.readAsText(file);
-      else reader.readAsArrayBuffer(file);
+      reader.onload = (event) => {
+        setAttachedFiles(prev => [...prev, {
+          name: file.name,
+          type: file.type,
+          size: file.size,
+          content: event.target?.result || null
+        }]);
+      };
+      
+      const isText = file.type.startsWith('text/') || 
+                     /\.(ts|tsx|js|jsx|json|md|txt|css|html)$/.test(file.name);
+      
+      if (isText) {
+        reader.readAsText(file);
+      } else {
+        reader.readAsArrayBuffer(file);
+      }
     });
-  };
+  }, []);
 
   const handleSendText = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -527,9 +550,8 @@ const App: React.FC = () => {
     setMessages(prev => [...prev, { id: Date.now().toString(), role: 'user', content: userMsg, timestamp: new Date() }]);
     setInputText('');
     
-    // Manual text override also checks for 'thanks bye'
     if (userMsg.toLowerCase().includes('thanks bye')) {
-       setMessages(prev => [...prev, { id: `sys-${Date.now()}`, role: 'jarvis', content: "Protocol termination initiated.", timestamp: new Date() }]);
+       setMessages(prev => [...prev, { id: `sys-${Date.now()}`, role: 'jarvis', content: "[SYSTEM] Manual shutdown override engaged.", timestamp: new Date() }]);
        setTimeout(deactivateVoice, 1000);
        return;
     }
@@ -557,7 +579,6 @@ const App: React.FC = () => {
         </div>
       )}
 
-      {/* Holographic Background */}
       <div className="absolute inset-0 flex items-center justify-center opacity-20 pointer-events-none">
          <div className={`w-[300px] h-[300px] lg:w-[800px] lg:h-[800px] border-2 rounded-full animate-[spin_60s_linear_infinite] border-dashed transition-colors duration-500 ${systemAlert ? 'border-red-500' : 'border-cyan-500'}`}></div>
          <div className={`absolute w-[200px] h-[200px] lg:w-[600px] lg:h-[600px] border rounded-full animate-[spin_40s_linear_infinite_reverse] transition-colors duration-500 ${systemAlert ? 'border-red-400' : 'border-cyan-400'}`}></div>
@@ -572,7 +593,6 @@ const App: React.FC = () => {
 
       <div className="relative z-10 flex flex-col lg:flex-row h-full w-full p-4 lg:p-6 gap-4 lg:gap-6 pt-16 lg:pt-6">
         
-        {/* Left Sidebar: Stats */}
         <div className={`flex-col w-full lg:w-72 gap-4 transition-all duration-500 ${isMobileMenuOpen ? 'flex absolute inset-0 bg-slate-950/95 z-40 p-6 pt-20' : (!showStats && !isMobileMenuOpen) ? 'hidden' : 'hidden lg:flex'}`}>
           <div className="bg-slate-900/40 border border-cyan-500/30 rounded-lg p-4 backdrop-blur-md shadow-lg shadow-cyan-500/10">
             <h2 className="font-orbitron text-sm mb-4 flex items-center justify-between text-glow">
@@ -609,7 +629,6 @@ const App: React.FC = () => {
           </div>
         </div>
 
-        {/* Center: Visualizer */}
         <div className="flex-1 flex flex-col items-center justify-center relative py-8 lg:py-0">
           <div className="relative w-64 h-64 lg:w-96 lg:h-96 flex items-center justify-center">
              <canvas ref={canvasRef} width={500} height={500} className="absolute inset-0 w-full h-full pointer-events-none z-10 opacity-60" />
@@ -624,7 +643,7 @@ const App: React.FC = () => {
              <div className="absolute -bottom-24 lg:-bottom-28 left-1/2 -translate-x-1/2 flex flex-col items-center gap-3 w-full">
                 <div className={`px-4 lg:px-6 py-2 rounded-full text-[9px] lg:text-[11px] font-orbitron border transition-all duration-500 flex items-center gap-2 tracking-[0.2em] whitespace-nowrap ${status === ConnectionStatus.CONNECTED ? 'bg-green-500/20 border-green-500 text-green-400 shadow-[0_0_20px_rgba(34,197,94,0.4)]' : status === ConnectionStatus.CONNECTING ? 'bg-yellow-500/20 border-yellow-500 text-yellow-400 animate-pulse' : systemAlert ? 'bg-red-500/20 border-red-500 text-red-400 animate-pulse shadow-[0_0_20px_rgba(239,68,68,0.4)]' : isWakeWordListening ? 'bg-cyan-500/10 border-cyan-500/50 text-cyan-300' : 'bg-slate-500/10 border-slate-500/50 text-slate-500'}`}>
                   <div className={`w-1.5 h-1.5 lg:w-2 lg:h-2 rounded-full ${status === ConnectionStatus.CONNECTED ? 'bg-green-400 animate-ping' : 'bg-current'}`}></div>
-                  {isVoiceActive ? 'UPLINK SECURED' : systemAlert ? 'SYSTEM_OVERRIDE' : isWakeWordListening ? (isWakeWordSupported ? 'LISTENING: "HELLO JARVIS"' : 'MIC ACTIVE') : 'CORE IN STANDBY'}
+                  {isVoiceActive ? 'UPLINK SECURED' : systemAlert ? 'SYSTEM_OVERRIDE' : isWakeWordListening ? (isWakeWordSupported ? 'LISTENING: "HELLO JARVIS"' : 'MIC READY') : 'CORE IN STANDBY'}
                 </div>
                 <div className="flex gap-4 lg:gap-6 items-center">
                    <div className="text-[8px] lg:text-[10px] text-cyan-700 flex items-center gap-1.5 font-orbitron uppercase tracking-widest"><MapPin className="w-2.5 h-2.5 lg:w-3 lg:h-3" /> GPS_LOCKED</div>
@@ -635,7 +654,6 @@ const App: React.FC = () => {
           </div>
         </div>
 
-        {/* Right Sidebar: Logs & Controls */}
         <div className={`w-full lg:w-80 flex flex-col gap-4 transition-all duration-500 ${isMobileMenuOpen ? 'hidden' : (!showLogs && !isMobileMenuOpen) ? 'hidden' : 'flex'}`}>
           <div className="bg-slate-900/40 border border-cyan-500/30 rounded-lg h-40 lg:h-auto lg:flex-1 backdrop-blur-md flex flex-col overflow-hidden shadow-xl">
             <div className="p-3 border-b border-cyan-500/20 bg-cyan-500/5 flex justify-between items-center">
@@ -644,7 +662,7 @@ const App: React.FC = () => {
             </div>
             <div className="flex-1 overflow-y-auto p-3 lg:p-4 space-y-3 lg:space-y-4 font-mono text-[9px] lg:text-[10px] opacity-70 scrollbar-hide">
               <div className="space-y-1">
-                <p className="text-cyan-600 italic">[{new Date().toLocaleTimeString()}] System: JARVIS Initialized. Awaiting "Hello JARVIS".</p>
+                <p className="text-cyan-600 italic">[{new Date().toLocaleTimeString()}] System: Waiting for "Hello JARVIS".</p>
                 {messages.map(m => (
                   <p key={m.id} className={`${m.role === 'user' ? 'text-cyan-300' : 'text-slate-100'} whitespace-pre-wrap`}>
                     [{new Date(m.timestamp).toLocaleTimeString()}] {m.role.toUpperCase()}: {m.content}
@@ -656,7 +674,7 @@ const App: React.FC = () => {
               <input 
                 value={inputText} 
                 onChange={(e) => setInputText(e.target.value)} 
-                placeholder="Override Command..." 
+                placeholder="Manual Override..." 
                 className="bg-black/60 border border-cyan-500/20 rounded-md px-3 py-2 text-[10px] lg:text-xs focus:outline-none focus:border-cyan-400/50 flex-1 placeholder:text-cyan-950 text-cyan-100 font-mono" 
               />
               <button type="submit" className="p-2 bg-cyan-500/10 border border-cyan-500/40 rounded-md hover:bg-cyan-500/20 hover:border-cyan-400 transition-all active:scale-95">
@@ -666,11 +684,12 @@ const App: React.FC = () => {
           </div>
 
           <button 
+            disabled={status === ConnectionStatus.CONNECTING}
             onClick={isVoiceActive ? deactivateVoice : activateVoice} 
-            className={`w-full py-4 lg:py-5 rounded-xl font-orbitron flex items-center justify-center gap-4 transition-all duration-500 shadow-2xl relative overflow-hidden group border-2 ${isVoiceActive ? 'bg-green-600/80 border-green-400 text-white shadow-[0_0_40px_rgba(34,197,94,0.5)] scale-[1.02] lg:scale-[1.05]' : 'bg-cyan-900/30 border-cyan-400/50 text-cyan-300 hover:bg-cyan-500/20 hover:border-cyan-400'}`}
+            className={`w-full py-4 lg:py-5 rounded-xl font-orbitron flex items-center justify-center gap-4 transition-all duration-500 shadow-2xl relative overflow-hidden group border-2 ${isVoiceActive ? 'bg-green-600/80 border-green-400 text-white shadow-[0_0_40px_rgba(34,197,94,0.5)] scale-[1.02] lg:scale-[1.05]' : 'bg-cyan-900/30 border-cyan-400/50 text-cyan-300 hover:bg-cyan-500/20 hover:border-cyan-400'} ${status === ConnectionStatus.CONNECTING ? 'opacity-50 cursor-not-allowed' : ''}`}
           >
             {isVoiceActive ? <MicOff className="w-5 h-5 lg:w-6 lg:h-6 animate-pulse" /> : <Mic className="w-5 h-5 lg:w-6 lg:h-6 group-hover:scale-125 transition-transform" />}
-            <span className="tracking-[0.2em] lg:tracking-[0.3em] text-xs lg:text-sm font-bold uppercase">{isVoiceActive ? 'SHUTDOWN' : 'ACTIVATE'}</span>
+            <span className="tracking-[0.2em] lg:tracking-[0.3em] text-xs lg:text-sm font-bold uppercase">{isVoiceActive ? 'TERMINATE' : status === ConnectionStatus.CONNECTING ? 'UPLINKING...' : 'INITIALIZE'}</span>
             {isVoiceActive && <div className="absolute inset-0 bg-white/10 animate-ping pointer-events-none"></div>}
           </button>
         </div>
