@@ -23,6 +23,7 @@ import {
 import { GoogleGenAI, Modality, LiveServerMessage, Blob, FunctionDeclaration, Type } from '@google/genai';
 import { ConnectionStatus, Message, SystemStats } from './types';
 import { encode, decode, decodeAudioData, downsample } from './utils/audioHelpers';
+import { createAIService } from './utils/aiService';
 
 // Define interface for attached files to ensure type safety and avoid 'unknown' errors
 interface AttachedFile {
@@ -320,7 +321,7 @@ const App: React.FC = () => {
       setIsAudioDetected(false);
       setStandbyTranscript('');
       
-      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY as string });
+      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY as string });
       
       if (scriptProcessorRef.current) {
         scriptProcessorRef.current.disconnect();
@@ -579,14 +580,13 @@ const App: React.FC = () => {
     }
 
     try {
-      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY as string });
-      const response = await ai.models.generateContent({ 
-        model: 'gemini-3-flash-preview', 
-        contents: userMsg, 
-        config: { systemInstruction: getDynamicSystemInstruction(), tools: [{googleSearch: {}}] } 
-      });
+      const aiService = createAIService();
+      const response = await aiService.generateText(userMsg, getDynamicSystemInstruction());
       setMessages(prev => [...prev, { id: Date.now().toString(), role: 'jarvis', content: response.text || "...", timestamp: new Date() }]);
-    } catch (err) { console.error(err); }
+    } catch (err) { 
+      console.error('AI Service Error:', err);
+      setMessages(prev => [...prev, { id: Date.now().toString(), role: 'jarvis', content: "AI service unavailable. Please check your local AI server.", timestamp: new Date() }]);
+    }
   };
 
   return (
