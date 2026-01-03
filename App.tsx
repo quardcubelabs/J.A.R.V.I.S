@@ -594,95 +594,98 @@ const App: React.FC = () => {
       <div className="scanline"></div>
       
       {systemAlert && (
-        <div className="absolute top-0 left-0 w-full h-full pointer-events-none z-50 flex items-center justify-center">
-           <div className="bg-red-600/20 border-y-2 border-red-500 w-full py-4 text-center animate-pulse">
-             <span className="font-orbitron text-red-500 tracking-[0.5em] text-xs lg:text-sm uppercase tracking-widest">CRITICAL ALERT: {systemAlert}</span>
+        <div className="absolute top-0 left-0 w-full h-full pointer-events-none z-50 flex items-center justify-center px-4">
+           <div className="bg-red-600/20 border-y-2 border-red-500 w-full py-2 sm:py-4 text-center animate-pulse">
+             <span className="font-orbitron text-red-500 tracking-[0.2em] sm:tracking-[0.5em] text-[10px] sm:text-xs lg:text-sm uppercase">CRITICAL ALERT: {systemAlert}</span>
            </div>
         </div>
       )}
 
-      <div className="lg:hidden absolute top-0 left-0 w-full p-4 flex justify-between items-center z-50">
-        <h1 className="font-orbitron text-sm tracking-widest text-glow flex items-center gap-2"><ShieldCheck className="w-4 h-4" /> J.A.R.V.I.S.</h1>
-        <button onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} className="p-2 bg-cyan-500/10 border border-cyan-500/30 rounded-md">
-          {isMobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+      {/* Mobile/Tablet Header - visible below lg breakpoint */}
+      <div className="lg:hidden absolute top-0 left-0 w-full p-2 sm:p-4 flex justify-between items-center z-50 bg-slate-950/80 backdrop-blur-sm border-b border-cyan-500/10">
+        <h1 className="font-orbitron text-xs sm:text-sm tracking-wider sm:tracking-widest text-glow flex items-center gap-1.5 sm:gap-2"><ShieldCheck className="w-3 h-3 sm:w-4 sm:h-4" /> J.A.R.V.I.S.</h1>
+        <button onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} className="p-1.5 sm:p-2 bg-cyan-500/10 border border-cyan-500/30 rounded-md active:scale-95 transition-transform">
+          {isMobileMenuOpen ? <X className="w-4 h-4 sm:w-5 sm:h-5" /> : <Menu className="w-4 h-4 sm:w-5 sm:h-5" />}
         </button>
       </div>
 
-      <div className="relative z-10 flex flex-col lg:flex-row h-full w-full p-4 lg:p-6 gap-4 lg:gap-6 pt-16 lg:pt-6 overflow-hidden">
+      <div className="relative z-10 flex flex-col lg:flex-row h-full w-full p-2 sm:p-4 lg:p-6 gap-2 sm:gap-4 lg:gap-6 pt-12 sm:pt-16 lg:pt-6 overflow-hidden landscape-compact">
         
-        <div className={`flex-col w-full lg:w-72 gap-4 transition-all duration-500 ${isMobileMenuOpen ? 'flex absolute inset-0 bg-slate-950/95 z-40 p-6 pt-20' : (!showStats && !isMobileMenuOpen) ? 'hidden' : 'hidden lg:flex'}`}>
-          <div className="bg-slate-900/40 border border-cyan-500/30 rounded-lg p-4 backdrop-blur-md shadow-lg shadow-cyan-500/10">
-            <h2 className="font-orbitron text-sm mb-4 flex items-center justify-between text-glow">
-              <span className="flex items-center gap-2"><ShieldCheck className="w-4 h-4" /> CORE STATUS</span>
-              <Activity className="w-3 h-3 text-cyan-600 animate-pulse" />
+        {/* Left Sidebar - Stats & Files */}
+        <div className={`flex-col w-full lg:w-72 xl:w-80 gap-2 sm:gap-4 transition-all duration-500 ${isMobileMenuOpen ? 'flex absolute inset-0 bg-slate-950/98 z-40 p-4 sm:p-6 pt-16 sm:pt-20 overflow-y-auto' : (!showStats && !isMobileMenuOpen) ? 'hidden' : 'hidden lg:flex'}`}>
+          <div className="bg-slate-900/40 border border-cyan-500/30 rounded-lg p-3 sm:p-4 backdrop-blur-md shadow-lg shadow-cyan-500/10">
+            <h2 className="font-orbitron text-xs sm:text-sm mb-3 sm:mb-4 flex items-center justify-between text-glow">
+              <span className="flex items-center gap-1.5 sm:gap-2"><ShieldCheck className="w-3 h-3 sm:w-4 sm:h-4" /> CORE STATUS</span>
+              <Activity className="w-2.5 h-2.5 sm:w-3 sm:h-3 text-cyan-600 animate-pulse" />
             </h2>
-            <div className="space-y-4">
-              <StatRow icon={<Cpu className="w-4 h-4"/>} label="PROCESSOR" value={Math.round(stats.cpu)} unit="%" />
-              <StatRow icon={<Database className="w-4 h-4"/>} label="NEURAL LOAD" value={Math.round(stats.memory)} unit="%" />
-              <StatRow icon={<Wind className="w-4 h-4"/>} label="DATA UPLINK" value={Math.round(stats.network)} unit="MB/s" />
-              <StatRow icon={<Battery className={`w-4 h-4 ${batteryLevel && batteryLevel < 20 ? 'text-red-500 animate-pulse' : ''}`}/>} label="ARC REACTOR" value={batteryLevel || 0} unit="%" />
+            <div className="space-y-3 sm:space-y-4">
+              <StatRow icon={<Cpu className="w-3 h-3 sm:w-4 sm:h-4"/>} label="PROCESSOR" value={Math.round(stats.cpu)} unit="%" />
+              <StatRow icon={<Database className="w-3 h-3 sm:w-4 sm:h-4"/>} label="NEURAL LOAD" value={Math.round(stats.memory)} unit="%" />
+              <StatRow icon={<Wind className="w-3 h-3 sm:w-4 sm:h-4"/>} label="DATA UPLINK" value={Math.round(stats.network)} unit="MB/s" />
+              <StatRow icon={<Battery className={`w-3 h-3 sm:w-4 sm:h-4 ${batteryLevel && batteryLevel < 20 ? 'text-red-500 animate-pulse' : ''}`}/>} label="ARC REACTOR" value={batteryLevel || 0} unit="%" />
             </div>
           </div>
           
-          <div className="bg-slate-900/40 border border-cyan-500/30 rounded-lg p-4 backdrop-blur-md flex-1 overflow-hidden flex flex-col">
-            <h2 className="font-orbitron text-sm mb-2 flex items-center gap-2 text-glow"><Terminal className="w-4 h-4" /> LOCAL_FILES_SYNC</h2>
-            <div className="flex-1 overflow-y-auto space-y-2 mb-2 pr-1 scrollbar-hide">
+          <div className="bg-slate-900/40 border border-cyan-500/30 rounded-lg p-3 sm:p-4 backdrop-blur-md flex-1 min-h-[120px] sm:min-h-[150px] overflow-hidden flex flex-col">
+            <h2 className="font-orbitron text-xs sm:text-sm mb-2 flex items-center gap-1.5 sm:gap-2 text-glow"><Terminal className="w-3 h-3 sm:w-4 sm:h-4" /> LOCAL_FILES_SYNC</h2>
+            <div className="flex-1 overflow-y-auto space-y-1.5 sm:space-y-2 mb-2 pr-1 scrollbar-hide">
               {attachedFiles.length === 0 ? (
-                <p className="text-[10px] text-cyan-900 italic">No files in buffer...</p>
+                <p className="text-[9px] sm:text-[10px] text-cyan-900 italic">No files in buffer...</p>
               ) : (
                 attachedFiles.map((f, i) => (
-                  <div key={i} className="flex items-center gap-2 p-1.5 border border-cyan-500/10 rounded bg-cyan-500/5">
-                    <FileCode className="w-3 h-3 text-cyan-400 shrink-0" />
-                    <span className="text-[10px] truncate flex-1">{f.name}</span>
-                    <span className="text-[8px] opacity-40 uppercase">{Math.round(f.size/1024)}KB</span>
+                  <div key={i} className="flex items-center gap-1.5 sm:gap-2 p-1 sm:p-1.5 border border-cyan-500/10 rounded bg-cyan-500/5">
+                    <FileCode className="w-2.5 h-2.5 sm:w-3 sm:h-3 text-cyan-400 shrink-0" />
+                    <span className="text-[9px] sm:text-[10px] truncate flex-1">{f.name}</span>
+                    <span className="text-[7px] sm:text-[8px] opacity-40 uppercase">{Math.round(f.size/1024)}KB</span>
                   </div>
                 ))
               )}
             </div>
-            <button onClick={() => fileInputRef.current?.click()} className="mt-auto py-3 lg:py-2 border border-dashed border-cyan-500/30 rounded text-[10px] font-orbitron flex items-center justify-center gap-2 hover:bg-cyan-500/10 transition-colors">
-              <Upload className="w-3 h-3" /> ACCESS STORAGE
+            <button onClick={() => fileInputRef.current?.click()} className="mt-auto py-2 sm:py-3 lg:py-2 border border-dashed border-cyan-500/30 rounded text-[9px] sm:text-[10px] font-orbitron flex items-center justify-center gap-1.5 sm:gap-2 hover:bg-cyan-500/10 active:bg-cyan-500/20 transition-colors">
+              <Upload className="w-2.5 h-2.5 sm:w-3 sm:h-3" /> ACCESS STORAGE
             </button>
             <input type="file" ref={fileInputRef} onChange={handleFileUpload} multiple className="hidden" />
           </div>
         </div>
 
-        {/* Central Display Area: Refined sizing for better mobile focal point and spacing */}
-        <div className="flex-1 relative flex items-center justify-center min-h-0 py-4 lg:py-0">
+        {/* Central Display Area */}
+        <div className="flex-1 relative flex items-center justify-center min-h-0 py-2 sm:py-4 lg:py-0">
           
           {/* Unified Co-Centered Container */}
           <div className="relative w-full h-full flex items-center justify-center">
             
-            {/* Background HUD Graphics - Rescaled to pull inwards and give breathing room to labels */}
+            {/* Background HUD Graphics - Responsive sizing */}
             <div className="absolute inset-0 flex items-center justify-center opacity-20 pointer-events-none z-0 overflow-visible">
-               <div className={`absolute w-[70vmin] h-[70vmin] border border-cyan-500/10 rounded-full animate-[spin_180s_linear_infinite]`}></div>
-               <div className={`absolute w-[58vmin] h-[58vmin] border-2 rounded-full animate-[spin_60s_linear_infinite] border-dashed transition-colors duration-500 ${systemAlert ? 'border-red-500' : 'border-cyan-500'}`}></div>
-               <div className={`absolute w-[46vmin] h-[46vmin] border rounded-full animate-[spin_40s_linear_infinite_reverse] transition-colors duration-500 ${systemAlert ? 'border-red-400' : 'border-cyan-400'}`}></div>
-               <div className={`absolute w-[34vmin] h-[34vmin] border border-cyan-500/5 rounded-full animate-[pulse_4s_ease-in-out_infinite]`}></div>
+               <div className={`absolute w-[60vmin] sm:w-[65vmin] lg:w-[70vmin] h-[60vmin] sm:h-[65vmin] lg:h-[70vmin] border border-cyan-500/10 rounded-full animate-[spin_180s_linear_infinite]`}></div>
+               <div className={`absolute w-[50vmin] sm:w-[54vmin] lg:w-[58vmin] h-[50vmin] sm:h-[54vmin] lg:h-[58vmin] border-2 rounded-full animate-[spin_60s_linear_infinite] border-dashed transition-colors duration-500 ${systemAlert ? 'border-red-500' : 'border-cyan-500'}`}></div>
+               <div className={`absolute w-[40vmin] sm:w-[43vmin] lg:w-[46vmin] h-[40vmin] sm:h-[43vmin] lg:h-[46vmin] border rounded-full animate-[spin_40s_linear_infinite_reverse] transition-colors duration-500 ${systemAlert ? 'border-red-400' : 'border-cyan-400'}`}></div>
+               <div className={`absolute w-[30vmin] sm:w-[32vmin] lg:w-[34vmin] h-[30vmin] sm:h-[32vmin] lg:h-[34vmin] border border-cyan-500/5 rounded-full animate-[pulse_4s_ease-in-out_infinite]`}></div>
             </div>
 
-            {/* Core Visualizer Component - Rescaled to remain proportional to the new ring sizes */}
-            <div className="relative w-[28vmin] h-[28vmin] min-w-[130px] min-h-[130px] max-w-[280px] max-h-[280px] flex items-center justify-center z-10">
+            {/* Core Visualizer Component - Responsive sizing */}
+            <div className="relative w-[24vmin] sm:w-[26vmin] lg:w-[28vmin] h-[24vmin] sm:h-[26vmin] lg:h-[28vmin] min-w-[100px] sm:min-w-[120px] min-h-[100px] sm:min-h-[120px] max-w-[200px] sm:max-w-[240px] lg:max-w-[280px] max-h-[200px] sm:max-h-[240px] lg:max-h-[280px] flex items-center justify-center z-10">
                <canvas ref={canvasRef} width={500} height={500} className="absolute inset-0 w-full h-full pointer-events-none z-10 opacity-80" />
                
                {/* Dynamic Glow Layer */}
-               <div className={`absolute w-[110%] h-[110%] rounded-full transition-all duration-300 ${isVoiceActive ? 'bg-green-500/20 scale-125 blur-3xl' : (isAudioDetected || systemAlert) ? 'bg-cyan-500/30 scale-125 blur-3xl' : 'bg-transparent'}`}></div>
+               <div className={`absolute w-[110%] h-[110%] rounded-full transition-all duration-300 ${isVoiceActive ? 'bg-green-500/20 scale-125 blur-2xl sm:blur-3xl' : (isAudioDetected || systemAlert) ? 'bg-cyan-500/30 scale-125 blur-2xl sm:blur-3xl' : 'bg-transparent'}`}></div>
                
                {/* Main Zap Icon Hub */}
-               <div className={`w-[44%] h-[44%] rounded-full flex items-center justify-center transition-all duration-500 shadow-2xl relative z-20 ${isVoiceActive ? 'bg-green-500 shadow-[0_0_60px_rgba(34,197,94,1)] scale-110 border-2 border-green-300' : systemAlert ? 'bg-red-600 shadow-[0_0_40px_rgba(239,68,68,0.6)] border border-red-400' : isAudioDetected ? 'bg-cyan-600 shadow-[0_0_40px_rgba(6,182,212,0.8)] scale-105 border border-cyan-300' : 'bg-slate-900 border border-cyan-500/30'}`}>
+               <div className={`w-[44%] h-[44%] min-w-[40px] min-h-[40px] rounded-full flex items-center justify-center transition-all duration-500 shadow-xl sm:shadow-2xl relative z-20 ${isVoiceActive ? 'bg-green-500 shadow-[0_0_30px_rgba(34,197,94,1)] sm:shadow-[0_0_60px_rgba(34,197,94,1)] scale-110 border-2 border-green-300' : systemAlert ? 'bg-red-600 shadow-[0_0_20px_rgba(239,68,68,0.6)] sm:shadow-[0_0_40px_rgba(239,68,68,0.6)] border border-red-400' : isAudioDetected ? 'bg-cyan-600 shadow-[0_0_20px_rgba(6,182,212,0.8)] sm:shadow-[0_0_40px_rgba(6,182,212,0.8)] scale-105 border border-cyan-300' : 'bg-slate-900 border border-cyan-500/30'}`}>
                   <Zap className={`w-1/2 h-1/2 transition-colors duration-500 ${isVoiceActive ? 'text-white' : 'text-cyan-800'}`} />
                   {isVoiceActive && <div className="absolute inset-0 flex items-center justify-center"><div className="w-full h-full border-2 border-green-400 rounded-full animate-ping opacity-20"></div></div>}
                </div>
 
-               {/* Status Badge - Pushed further down to ensure it clears the HUD graphics and creates a clean layout */}
-               <div className="absolute top-[150%] left-1/2 -translate-x-1/2 flex flex-col items-center gap-5 w-full">
-                  <div className={`px-5 py-2.5 rounded-full text-[10px] lg:text-[11px] font-orbitron border transition-all duration-500 flex items-center gap-2 tracking-[0.2em] whitespace-nowrap bg-black/70 backdrop-blur-md shadow-2xl ${status === ConnectionStatus.CONNECTED ? 'border-green-500 text-green-400 shadow-[0_0_20px_rgba(34,197,94,0.4)]' : status === ConnectionStatus.CONNECTING ? 'border-yellow-500 text-yellow-400 animate-pulse' : systemAlert ? 'border-red-500 text-red-400 animate-pulse shadow-[0_0_20px_rgba(239,68,68,0.4)]' : isWakeWordListening ? 'border-cyan-500/50 text-cyan-300' : 'border-slate-500/50 text-slate-500'}`}>
-                    <div className={`w-1.5 h-1.5 rounded-full ${status === ConnectionStatus.CONNECTED ? 'bg-green-400 animate-ping' : 'bg-current'}`}></div>
-                    {isVoiceActive ? 'UPLINK SECURED' : systemAlert ? 'SYSTEM_OVERRIDE' : isWakeWordListening ? (isWakeWordSupported ? 'LISTENING: "HELLO JARVIS"' : 'MIC ACTIVE') : 'CORE IN STANDBY'}
+               {/* Status Badge - Responsive positioning */}
+               <div className="absolute top-[130%] sm:top-[140%] lg:top-[150%] left-1/2 -translate-x-1/2 flex flex-col items-center gap-3 sm:gap-4 lg:gap-5 w-full px-2">
+                  <div className={`px-3 sm:px-4 lg:px-5 py-1.5 sm:py-2 lg:py-2.5 rounded-full text-[8px] sm:text-[9px] lg:text-[11px] font-orbitron border transition-all duration-500 flex items-center gap-1.5 sm:gap-2 tracking-[0.1em] sm:tracking-[0.15em] lg:tracking-[0.2em] whitespace-nowrap bg-black/70 backdrop-blur-md shadow-lg sm:shadow-2xl ${status === ConnectionStatus.CONNECTED ? 'border-green-500 text-green-400 shadow-[0_0_10px_rgba(34,197,94,0.4)] sm:shadow-[0_0_20px_rgba(34,197,94,0.4)]' : status === ConnectionStatus.CONNECTING ? 'border-yellow-500 text-yellow-400 animate-pulse' : systemAlert ? 'border-red-500 text-red-400 animate-pulse shadow-[0_0_10px_rgba(239,68,68,0.4)] sm:shadow-[0_0_20px_rgba(239,68,68,0.4)]' : isWakeWordListening ? 'border-cyan-500/50 text-cyan-300' : 'border-slate-500/50 text-slate-500'}`}>
+                    <div className={`w-1 h-1 sm:w-1.5 sm:h-1.5 rounded-full ${status === ConnectionStatus.CONNECTED ? 'bg-green-400 animate-ping' : 'bg-current'}`}></div>
+                    <span className="hidden xs:inline">{isVoiceActive ? 'UPLINK SECURED' : systemAlert ? 'SYSTEM_OVERRIDE' : isWakeWordListening ? (isWakeWordSupported ? 'LISTENING: "HELLO JARVIS"' : 'MIC ACTIVE') : 'CORE IN STANDBY'}</span>
+                    <span className="xs:hidden">{isVoiceActive ? 'ACTIVE' : systemAlert ? 'ALERT' : isWakeWordListening ? 'LISTENING' : 'STANDBY'}</span>
                   </div>
-                  <div className="flex gap-4 lg:gap-6 items-center">
-                     <div className="text-[8px] lg:text-[10px] text-cyan-800 flex items-center gap-1.5 font-orbitron uppercase tracking-widest"><MapPin className="w-2.5 h-2.5 lg:w-3 lg:h-3" /> GPS_LOCKED</div>
-                    <div className="h-4 w-[1px] bg-cyan-500/10"></div>
-                    <button onClick={() => { shouldRestartRecognition.current = true; startWakeWordDetection(); }} className="text-[8px] lg:text-[10px] text-cyan-900 hover:text-cyan-400 transition-colors flex items-center gap-1.5 font-orbitron tracking-tighter"><RefreshCw className="w-2.5 h-2.5 lg:w-3 lg:h-3" /> RESET_TRIGGER</button>
+                  <div className="flex gap-2 sm:gap-4 lg:gap-6 items-center">
+                     <div className="text-[7px] sm:text-[8px] lg:text-[10px] text-cyan-800 flex items-center gap-1 sm:gap-1.5 font-orbitron uppercase tracking-wider sm:tracking-widest"><MapPin className="w-2 h-2 sm:w-2.5 sm:h-2.5 lg:w-3 lg:h-3" /> <span className="hidden sm:inline">GPS_LOCKED</span><span className="sm:hidden">GPS</span></div>
+                    <div className="h-3 sm:h-4 w-[1px] bg-cyan-500/10"></div>
+                    <button onClick={() => { shouldRestartRecognition.current = true; startWakeWordDetection(); }} className="text-[7px] sm:text-[8px] lg:text-[10px] text-cyan-900 hover:text-cyan-400 active:text-cyan-300 transition-colors flex items-center gap-1 sm:gap-1.5 font-orbitron tracking-tight sm:tracking-tighter"><RefreshCw className="w-2 h-2 sm:w-2.5 sm:h-2.5 lg:w-3 lg:h-3" /> <span className="hidden sm:inline">RESET_TRIGGER</span><span className="sm:hidden">RESET</span></button>
                   </div>
                </div>
             </div>
@@ -691,37 +694,37 @@ const App: React.FC = () => {
         </div>
 
         {/* Control & Log Panel */}
-        <div className={`w-full lg:w-80 flex flex-col gap-4 transition-all duration-500 ${isMobileMenuOpen ? 'hidden' : (!showLogs && !isMobileMenuOpen) ? 'hidden' : 'flex'}`}>
-          <div className="bg-slate-900/40 border border-cyan-500/30 rounded-lg h-44 lg:h-auto lg:flex-1 backdrop-blur-md flex flex-col overflow-hidden shadow-xl">
-            <div className="p-3 border-b border-cyan-500/20 bg-cyan-500/5 flex justify-between items-center">
-              <h2 className="font-orbitron text-[10px] lg:text-xs flex items-center gap-2 text-glow uppercase tracking-wider"><MessageSquare className="w-4 h-4 text-cyan-400" /> System_Logs</h2>
-              <span className="text-[8px] lg:text-[10px] font-mono opacity-40">UTC-OS4.5</span>
+        <div className={`w-full lg:w-72 xl:w-80 flex flex-col gap-2 sm:gap-4 transition-all duration-500 ${isMobileMenuOpen ? 'hidden' : (!showLogs && !isMobileMenuOpen) ? 'hidden' : 'flex'}`}>
+          <div className="bg-slate-900/40 border border-cyan-500/30 rounded-lg h-36 sm:h-44 lg:h-auto lg:flex-1 backdrop-blur-md flex flex-col overflow-hidden shadow-xl">
+            <div className="p-2 sm:p-3 border-b border-cyan-500/20 bg-cyan-500/5 flex justify-between items-center">
+              <h2 className="font-orbitron text-[9px] sm:text-[10px] lg:text-xs flex items-center gap-1.5 sm:gap-2 text-glow uppercase tracking-wider"><MessageSquare className="w-3 h-3 sm:w-4 sm:h-4 text-cyan-400" /> System_Logs</h2>
+              <span className="text-[7px] sm:text-[8px] lg:text-[10px] font-mono opacity-40">UTC-OS4.5</span>
             </div>
-            <div className="flex-1 overflow-y-auto p-3 lg:p-4 space-y-3 lg:space-y-4 font-mono text-[9px] lg:text-[10px] opacity-70 scrollbar-hide">
-              <div className="space-y-2">
+            <div className="flex-1 overflow-y-auto p-2 sm:p-3 lg:p-4 space-y-2 sm:space-y-3 lg:space-y-4 font-mono text-[8px] sm:text-[9px] lg:text-[10px] opacity-70 scrollbar-hide">
+              <div className="space-y-1.5 sm:space-y-2">
                 {isWakeWordListening && (
-                  <div className="p-2 border border-cyan-500/20 bg-cyan-500/5 rounded animate-pulse">
-                     <p className="text-[8px] text-cyan-600 mb-1 font-orbitron uppercase tracking-widest">Neural Monitor (Hearing...):</p>
-                     <p className="text-cyan-400 italic">"{standbyTranscript || 'Waiting for voice...'}"</p>
+                  <div className="p-1.5 sm:p-2 border border-cyan-500/20 bg-cyan-500/5 rounded animate-pulse">
+                     <p className="text-[7px] sm:text-[8px] text-cyan-600 mb-0.5 sm:mb-1 font-orbitron uppercase tracking-wider sm:tracking-widest">Neural Monitor:</p>
+                     <p className="text-cyan-400 italic text-[8px] sm:text-[9px]">"{standbyTranscript || 'Waiting...'}"</p>
                   </div>
                 )}
-                <p className="text-cyan-600 italic">[{new Date().toLocaleTimeString()}] System: Acoustic trigger active.</p>
+                <p className="text-cyan-600 italic">[{new Date().toLocaleTimeString()}] System: Active.</p>
                 {messages.slice(-5).map(m => (
-                  <p key={m.id} className={`${m.role === 'user' ? 'text-cyan-300' : 'text-slate-100'} whitespace-pre-wrap`}>
+                  <p key={m.id} className={`${m.role === 'user' ? 'text-cyan-300' : 'text-slate-100'} whitespace-pre-wrap break-words`}>
                     [{new Date(m.timestamp).toLocaleTimeString()}] {m.role.toUpperCase()}: {m.content}
                   </p>
                 ))}
               </div>
             </div>
-            <form onSubmit={handleSendText} className="p-2 lg:p-3 border-t border-cyan-500/20 flex gap-2 bg-black/40">
+            <form onSubmit={handleSendText} className="p-1.5 sm:p-2 lg:p-3 border-t border-cyan-500/20 flex gap-1.5 sm:gap-2 bg-black/40">
               <input 
                 value={inputText} 
                 onChange={(e) => setInputText(e.target.value)} 
                 placeholder="Manual Override..." 
-                className="bg-black/60 border border-cyan-500/20 rounded-md px-3 py-2 text-[10px] lg:text-xs focus:outline-none focus:border-cyan-400/50 flex-1 placeholder:text-cyan-950 text-cyan-100 font-mono" 
+                className="bg-black/60 border border-cyan-500/20 rounded-md px-2 sm:px-3 py-1.5 sm:py-2 text-[9px] sm:text-[10px] lg:text-xs focus:outline-none focus:border-cyan-400/50 flex-1 placeholder:text-cyan-950 text-cyan-100 font-mono min-w-0" 
               />
-              <button type="submit" className="p-2 bg-cyan-500/10 border border-cyan-500/40 rounded-md hover:bg-cyan-500/20 hover:border-cyan-400 transition-all active:scale-95">
-                <Power className="w-4 h-4 text-cyan-400" />
+              <button type="submit" className="p-1.5 sm:p-2 bg-cyan-500/10 border border-cyan-500/40 rounded-md hover:bg-cyan-500/20 hover:border-cyan-400 transition-all active:scale-95 shrink-0">
+                <Power className="w-3 h-3 sm:w-4 sm:h-4 text-cyan-400" />
               </button>
             </form>
           </div>
@@ -729,10 +732,10 @@ const App: React.FC = () => {
           <button 
             disabled={status === ConnectionStatus.CONNECTING}
             onClick={isVoiceActive ? deactivateVoice : activateVoice} 
-            className={`w-full py-4 lg:py-5 rounded-xl font-orbitron flex items-center justify-center gap-4 transition-all duration-500 shadow-2xl relative overflow-hidden group border-2 ${isVoiceActive ? 'bg-green-600/80 border-green-400 text-white shadow-[0_0_40px_rgba(34,197,94,0.5)] scale-[1.02] lg:scale-[1.05]' : 'bg-cyan-900/30 border-cyan-400/50 text-cyan-300 hover:bg-cyan-500/20 hover:border-cyan-400'} ${status === ConnectionStatus.CONNECTING ? 'opacity-50 cursor-not-allowed' : ''}`}
+            className={`w-full py-3 sm:py-4 lg:py-5 rounded-lg sm:rounded-xl font-orbitron flex items-center justify-center gap-2 sm:gap-3 lg:gap-4 transition-all duration-500 shadow-xl sm:shadow-2xl relative overflow-hidden group border-2 ${isVoiceActive ? 'bg-green-600/80 border-green-400 text-white shadow-[0_0_20px_rgba(34,197,94,0.5)] sm:shadow-[0_0_40px_rgba(34,197,94,0.5)] scale-[1.01] sm:scale-[1.02] lg:scale-[1.05]' : 'bg-cyan-900/30 border-cyan-400/50 text-cyan-300 hover:bg-cyan-500/20 hover:border-cyan-400 active:bg-cyan-500/30'} ${status === ConnectionStatus.CONNECTING ? 'opacity-50 cursor-not-allowed' : ''}`}
           >
-            {isVoiceActive ? <MicOff className="w-5 h-5 lg:w-6 lg:h-6 animate-pulse" /> : <Mic className="w-5 h-5 lg:w-6 lg:h-6 group-hover:scale-125 transition-transform" />}
-            <span className="tracking-[0.2em] lg:tracking-[0.3em] text-xs lg:text-sm font-bold uppercase">{isVoiceActive ? 'TERMINATE' : status === ConnectionStatus.CONNECTING ? 'UPLINKING...' : 'INITIALIZE'}</span>
+            {isVoiceActive ? <MicOff className="w-4 h-4 sm:w-5 sm:h-5 lg:w-6 lg:h-6 animate-pulse" /> : <Mic className="w-4 h-4 sm:w-5 sm:h-5 lg:w-6 lg:h-6 group-hover:scale-125 transition-transform" />}
+            <span className="tracking-[0.15em] sm:tracking-[0.2em] lg:tracking-[0.3em] text-[10px] sm:text-xs lg:text-sm font-bold uppercase">{isVoiceActive ? 'TERMINATE' : status === ConnectionStatus.CONNECTING ? 'UPLINKING...' : 'INITIALIZE'}</span>
             {isVoiceActive && <div className="absolute inset-0 bg-white/10 animate-ping pointer-events-none"></div>}
           </button>
         </div>
@@ -742,14 +745,14 @@ const App: React.FC = () => {
 };
 
 const StatRow: React.FC<{ icon: React.ReactNode, label: string, value: number, unit: string }> = ({ icon, label, value, unit }) => (
-  <div className="flex items-center gap-3 group">
-    <div className="p-2 bg-cyan-900/20 rounded-lg border border-cyan-500/20 group-hover:border-cyan-400/50 transition-colors duration-300 shadow-inner">{icon}</div>
-    <div className="flex-1">
-      <div className="flex justify-between text-[10px] font-orbitron mb-1.5 tracking-tighter">
-        <span className="text-cyan-500/60 uppercase">{label}</span>
-        <span className="text-cyan-300 font-bold">{Math.round(value)}{unit}</span>
+  <div className="flex items-center gap-2 sm:gap-3 group">
+    <div className="p-1.5 sm:p-2 bg-cyan-900/20 rounded-md sm:rounded-lg border border-cyan-500/20 group-hover:border-cyan-400/50 transition-colors duration-300 shadow-inner">{icon}</div>
+    <div className="flex-1 min-w-0">
+      <div className="flex justify-between text-[9px] sm:text-[10px] font-orbitron mb-1 sm:mb-1.5 tracking-tighter">
+        <span className="text-cyan-500/60 uppercase truncate">{label}</span>
+        <span className="text-cyan-300 font-bold ml-1">{Math.round(value)}{unit}</span>
       </div>
-      <div className="h-1.5 bg-slate-800/80 rounded-full overflow-hidden border border-white/5">
+      <div className="h-1 sm:h-1.5 bg-slate-800/80 rounded-full overflow-hidden border border-white/5">
         <div className={`h-full transition-all duration-700 shadow-[0_0_10px_rgba(6,182,212,0.8)] ${value < 20 ? 'bg-red-500' : 'bg-cyan-500'}`} style={{ width: `${value}%` }} />
       </div>
     </div>

@@ -50,6 +50,51 @@
         -ms-overflow-style: none;  /* IE and Edge */
         scrollbar-width: none;  /* Firefox */
       }
+      
+      /* Responsive root */
+      #root {
+        height: 100%;
+        width: 100%;
+      }
+      
+      /* Safe area for notched devices */
+      @supports (padding: env(safe-area-inset-top)) {
+        body {
+          padding-top: env(safe-area-inset-top);
+          padding-bottom: env(safe-area-inset-bottom);
+          padding-left: env(safe-area-inset-left);
+          padding-right: env(safe-area-inset-right);
+        }
+      }
+      
+      /* Landscape mode adjustments */
+      @media (orientation: landscape) and (max-height: 500px) {
+        .landscape-compact {
+          padding-top: 0.5rem !important;
+          padding-bottom: 0.5rem !important;
+        }
+        .landscape-hide {
+          display: none !important;
+        }
+        .landscape-small {
+          transform: scale(0.8);
+        }
+      }
+      
+      /* Extra small screens */
+      @media (max-width: 360px) {
+        .xs-text-smaller {
+          font-size: 8px !important;
+        }
+      }
+      
+      /* Tablet portrait */
+      @media (min-width: 640px) and (max-width: 1023px) {
+        .tablet-grid {
+          display: grid !important;
+          grid-template-columns: 1fr 1fr !important;
+        }
+      }
     </style>
 </head>
   <body>
