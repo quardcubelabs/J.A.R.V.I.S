@@ -18,12 +18,18 @@ import {
   Upload, 
   Battery, 
   Menu, 
-  X 
+  X,
+  Search,
+  TrendingUp,
+  Globe
 } from 'lucide-react';
 import { GoogleGenAI, Modality, LiveServerMessage, Blob as GenAIBlob, FunctionDeclaration, Type } from '@google/genai';
 import { ConnectionStatus, Message, SystemStats } from './types';
 import { encode, decode, decodeAudioData, downsample } from './utils/audioHelpers';
 import { createAIService } from './utils/aiService';
+import { createWebSearchService, WebSearchService } from './utils/webSearch';
+import { createResearchService, ResearchService } from './utils/research';
+import { createDerivTradingService, DerivTradingService } from './utils/derivTrading';
 
 // Define interface for attached files to ensure type safety and avoid 'unknown' errors
 interface AttachedFile {
@@ -37,7 +43,7 @@ interface AttachedFile {
 const MODEL_NAME = 'gemini-2.5-flash-native-audio-preview-09-2025';
 const MAX_RECONNECT_ATTEMPTS = 3;
 
-// Define function declaration for assistant deactivation
+// Function Declarations for Gemini Tools
 const deactivateAssistantFunctionDeclaration: FunctionDeclaration = {
   name: 'deactivate_assistant',
   description: 'Deactivates the assistant and puts it into standby mode.',
@@ -46,6 +52,164 @@ const deactivateAssistantFunctionDeclaration: FunctionDeclaration = {
     properties: {},
   },
 };
+
+const webSearchFunctionDeclaration: FunctionDeclaration = {
+  name: 'web_search',
+  description: 'Search the web for current information, news, or any topic. Use this when user asks about recent events, needs current data, or wants to look something up online.',
+  parameters: {
+    type: Type.OBJECT,
+    properties: {
+      query: {
+        type: Type.STRING,
+        description: 'The search query to look up on the web'
+      },
+      search_type: {
+        type: Type.STRING,
+        description: 'Type of search: "general", "news", or "images"'
+      }
+    },
+    required: ['query']
+  }
+};
+
+const researchFunctionDeclaration: FunctionDeclaration = {
+  name: 'deep_research',
+  description: 'Conduct deep research on a topic with comprehensive analysis. Use this for in-depth questions, academic queries, or when detailed information with sources is needed.',
+  parameters: {
+    type: Type.OBJECT,
+    properties: {
+      query: {
+        type: Type.STRING,
+        description: 'The research question or topic to investigate deeply'
+      },
+      topic_type: {
+        type: Type.STRING,
+        description: 'Type of research: "general", "news", or "finance"'
+      }
+    },
+    required: ['query']
+  }
+};
+
+const getDerivAccountFunctionDeclaration: FunctionDeclaration = {
+  name: 'get_deriv_account',
+  description: 'Get Deriv trading account information including balance, account type, and status.',
+  parameters: {
+    type: Type.OBJECT,
+    properties: {}
+  }
+};
+
+const getOpenPositionsFunctionDeclaration: FunctionDeclaration = {
+  name: 'get_open_positions',
+  description: 'Get all currently open trading positions on the Deriv account.',
+  parameters: {
+    type: Type.OBJECT,
+    properties: {}
+  }
+};
+
+const getSymbolPriceFunctionDeclaration: FunctionDeclaration = {
+  name: 'get_symbol_price',
+  description: 'Get the current price/quote for a trading symbol.',
+  parameters: {
+    type: Type.OBJECT,
+    properties: {
+      symbol: {
+        type: Type.STRING,
+        description: 'The trading symbol (e.g., "R_100" for Volatility 100, "frxEURUSD" for EUR/USD)'
+      }
+    },
+    required: ['symbol']
+  }
+};
+
+const buyContractFunctionDeclaration: FunctionDeclaration = {
+  name: 'buy_contract',
+  description: 'Buy a trading contract on Deriv. Supports various contract types like CALL (Rise), PUT (Fall), and digit contracts.',
+  parameters: {
+    type: Type.OBJECT,
+    properties: {
+      symbol: {
+        type: Type.STRING,
+        description: 'Trading symbol (e.g., "R_100", "R_50", "frxEURUSD")'
+      },
+      contract_type: {
+        type: Type.STRING,
+        description: 'Contract type: "CALL" (Rise), "PUT" (Fall), "DIGITOVER", "DIGITUNDER", "DIGITDIFF", "DIGITMATCH", "DIGITODD", "DIGITEVEN"'
+      },
+      amount: {
+        type: Type.NUMBER,
+        description: 'Stake amount in USD'
+      },
+      duration: {
+        type: Type.NUMBER,
+        description: 'Contract duration (number)'
+      },
+      duration_unit: {
+        type: Type.STRING,
+        description: 'Duration unit: "s" (seconds), "m" (minutes), "h" (hours), "d" (days), "t" (ticks)'
+      },
+      barrier: {
+        type: Type.STRING,
+        description: 'Barrier/prediction value for digit contracts (optional)'
+      }
+    },
+    required: ['symbol', 'contract_type', 'amount', 'duration', 'duration_unit']
+  }
+};
+
+const sellContractFunctionDeclaration: FunctionDeclaration = {
+  name: 'sell_contract',
+  description: 'Sell/close an open contract before expiry.',
+  parameters: {
+    type: Type.OBJECT,
+    properties: {
+      contract_id: {
+        type: Type.STRING,
+        description: 'The ID of the contract to sell'
+      }
+    },
+    required: ['contract_id']
+  }
+};
+
+const getMT5AccountsFunctionDeclaration: FunctionDeclaration = {
+  name: 'get_mt5_accounts',
+  description: 'Get list of MT5 trading accounts linked to the Deriv account.',
+  parameters: {
+    type: Type.OBJECT,
+    properties: {}
+  }
+};
+
+const getProfitTableFunctionDeclaration: FunctionDeclaration = {
+  name: 'get_profit_table',
+  description: 'Get the profit/loss history of recent trades.',
+  parameters: {
+    type: Type.OBJECT,
+    properties: {
+      limit: {
+        type: Type.NUMBER,
+        description: 'Number of transactions to retrieve (default 20)'
+      }
+    }
+  }
+};
+
+// All function declarations for Gemini
+const allFunctionDeclarations: FunctionDeclaration[] = [
+  deactivateAssistantFunctionDeclaration,
+  webSearchFunctionDeclaration,
+  researchFunctionDeclaration,
+  getDerivAccountFunctionDeclaration,
+  getOpenPositionsFunctionDeclaration,
+  getSymbolPriceFunctionDeclaration,
+  buyContractFunctionDeclaration,
+  sellContractFunctionDeclaration,
+  getMT5AccountsFunctionDeclaration,
+  getProfitTableFunctionDeclaration
+];
 
 const App: React.FC = () => {
   // State
@@ -96,13 +260,65 @@ const App: React.FC = () => {
   const audioProcessingQueue = useRef<string[]>([]);
   const isProcessingAudio = useRef(false);
 
+  // Service Refs
+  const webSearchServiceRef = useRef<WebSearchService | null>(null);
+  const researchServiceRef = useRef<ResearchService | null>(null);
+  const derivServiceRef = useRef<DerivTradingService | null>(null);
+
+  // Initialize services
+  useEffect(() => {
+    webSearchServiceRef.current = createWebSearchService();
+    researchServiceRef.current = createResearchService();
+    derivServiceRef.current = createDerivTradingService();
+    
+    // Connect to Deriv if service is available
+    if (derivServiceRef.current) {
+      derivServiceRef.current.connect().then(() => {
+        console.log('Deriv trading service connected');
+      }).catch(err => {
+        console.warn('Deriv connection failed:', err);
+      });
+    }
+
+    return () => {
+      if (derivServiceRef.current) {
+        derivServiceRef.current.disconnect();
+      }
+    };
+  }, []);
+
   // --- Helpers ---
 
   const getDynamicSystemInstruction = useCallback(() => {
     const now = new Date();
     const batteryStr = batteryLevel !== null ? `${Math.round(batteryLevel)}%` : "Unknown";
     const fileList = attachedFiles.map(f => `- ${f.name} (${f.type}, ${Math.round(f.size/1024)}KB)`).join('\n');
-    return `You are J.A.R.V.I.S., Tony Stark's AI assistant. You are sophisticated, British, and polite. Address user as 'Framan'. Current Power: ${batteryStr}, Time: ${now.toLocaleTimeString()}, Files: ${fileList || "None"}. Important Protocol: If the user says "thanks bye", say a very brief, polite farewell and acknowledge that you are entering standby mode.`;
+    const derivConnected = derivServiceRef.current?.getConnectionStatus() ? 'Connected' : 'Disconnected';
+    
+    return `You are J.A.R.V.I.S., Tony Stark's AI assistant. You are sophisticated, British, and polite. Address user as 'Framan'. 
+
+CURRENT STATUS:
+- Power: ${batteryStr}
+- Time: ${now.toLocaleTimeString()}
+- Date: ${now.toLocaleDateString()}
+- Files Loaded: ${fileList || "None"}
+- Deriv Trading: ${derivConnected}
+
+CAPABILITIES:
+1. WEB SEARCH (web_search): Search the internet for current information, news, images
+2. DEEP RESEARCH (deep_research): Conduct comprehensive research with citations on any topic
+3. DERIV TRADING: Full trading capabilities including:
+   - get_deriv_account: Check account balance and status
+   - get_open_positions: View current open trades
+   - get_symbol_price: Get real-time prices for symbols
+   - buy_contract: Enter CALL/PUT positions, digit trades
+   - sell_contract: Close positions early
+   - get_mt5_accounts: View MT5 account details
+   - get_profit_table: View trading history and P&L
+
+TRADING SYMBOLS: R_100 (Volatility 100), R_50 (Volatility 50), R_25 (Volatility 25), R_10 (Volatility 10), frxEURUSD, frxGBPUSD, etc.
+
+Important Protocol: If the user says "thanks bye", say a very brief, polite farewell and acknowledge that you are entering standby mode.`;
   }, [batteryLevel, attachedFiles]);
 
   // --- Core Lifecycle ---
@@ -139,23 +355,33 @@ const App: React.FC = () => {
   }, []);
 
   const startWakeWordDetection = useCallback(() => {
+    // Check for SpeechRecognition support
     const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    
+    // Detect iOS
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || 
+                  (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    
     if (!SpeechRecognition) {
+      console.log("SpeechRecognition not supported on this device");
       setIsWakeWordSupported(false);
       return;
     }
 
+    // On iOS, SpeechRecognition is very limited and often fails
+    // We'll try it but handle failures gracefully
     if (recognitionRef.current) {
       try { recognitionRef.current.stop(); } catch(e) {}
     }
 
     const recognition = new SpeechRecognition();
-    recognition.continuous = true;
+    recognition.continuous = !isIOS; // iOS doesn't support continuous well
     recognition.interimResults = true;
     recognition.lang = 'en-US';
 
     recognition.onstart = () => {
       setIsWakeWordListening(true);
+      setSystemAlert(null); // Clear any previous alerts
       console.log("Acoustic trigger active: Monitoring for 'Hello JARVIS'...");
     };
 
@@ -168,7 +394,7 @@ const App: React.FC = () => {
         setStandbyTranscript(transcript);
 
         // Check for the specific activation word "hello jarvis"
-        if (transcript.includes('hello jarvis') || transcript.includes('hello jarvis.')) {
+        if (transcript.includes('hello jarvis') || transcript.includes('hello jarvis.') || transcript.includes('hey jarvis')) {
           console.log("Core activation detected via transcript segment:", transcript);
           
           setMessages(prev => [...prev, { 
@@ -193,9 +419,29 @@ const App: React.FC = () => {
     };
 
     recognition.onerror = (e: any) => {
+      console.warn("SpeechRecognition error:", e.error);
+      
+      // Handle different error types gracefully
       if (e.error === 'not-allowed') {
-        setSystemAlert("Microphone access denied for SpeechRecognition.");
+        // On iOS/mobile, don't show a critical alert - just disable the feature
+        if (isIOS) {
+          console.log("SpeechRecognition not allowed on iOS - using manual activation");
+          setIsWakeWordSupported(false);
+        } else {
+          // On desktop, show a less alarming message
+          setMessages(prev => [...prev, {
+            id: `sys-mic-${Date.now()}`,
+            role: 'jarvis',
+            content: "[SYSTEM] Wake word detection unavailable. Use the INITIALIZE button to activate voice mode.",
+            timestamp: new Date()
+          }]);
+        }
+      } else if (e.error === 'no-speech' || e.error === 'aborted') {
+        // These are normal, don't show alerts
+      } else if (e.error === 'network') {
+        console.log("SpeechRecognition network error - may need online connection");
       }
+      
       setIsWakeWordListening(false);
     };
 
@@ -203,7 +449,8 @@ const App: React.FC = () => {
       setIsWakeWordListening(false);
       setIsAudioDetected(false);
       // Continuous restart unless we are transitioning to active mode
-      if (shouldRestartRecognition.current && !isSessionActiveRef.current) {
+      // On iOS, we won't restart automatically due to limitations
+      if (!isIOS && shouldRestartRecognition.current && !isSessionActiveRef.current) {
         setTimeout(() => {
            if (shouldRestartRecognition.current && !isSessionActiveRef.current) {
              try { recognition.start(); } catch(e) {}
@@ -213,8 +460,11 @@ const App: React.FC = () => {
     };
 
     recognitionRef.current = recognition;
-    try { recognition.start(); } catch (e) { 
-      console.error("SpeechRecognition failed to start:", e); 
+    try { 
+      recognition.start(); 
+    } catch (e) { 
+      console.warn("SpeechRecognition failed to start:", e);
+      setIsWakeWordSupported(false);
     }
   }, []);
 
@@ -279,9 +529,227 @@ const App: React.FC = () => {
     if (message.toolCall) {
       for (const fc of message.toolCall.functionCalls) {
         let result: any = { status: "success" };
-        if (fc.name === 'deactivate_assistant') {
-          setTimeout(deactivateVoice, 1000);
-          result = { confirmation: "Standby sequence initialized." };
+        const args = fc.args as Record<string, any> || {};
+        
+        try {
+          switch (fc.name) {
+            case 'deactivate_assistant':
+              setTimeout(deactivateVoice, 1000);
+              result = { confirmation: "Standby sequence initialized." };
+              break;
+
+            case 'web_search':
+              if (webSearchServiceRef.current) {
+                const searchType = String(args.search_type || 'general');
+                const query = String(args.query || '');
+                let searchResult;
+                
+                if (searchType === 'news') {
+                  searchResult = await webSearchServiceRef.current.searchNews(query);
+                } else if (searchType === 'images') {
+                  searchResult = await webSearchServiceRef.current.searchImages(query);
+                } else {
+                  searchResult = await webSearchServiceRef.current.search(query);
+                }
+                
+                result = {
+                  query: searchResult.query,
+                  answer_box: searchResult.answer_box,
+                  knowledge_graph: searchResult.knowledge_graph,
+                  results: searchResult.results.slice(0, 5).map(r => ({
+                    title: r.title,
+                    link: r.link,
+                    snippet: r.snippet
+                  }))
+                };
+                
+                setMessages(prev => [...prev, {
+                  id: `search-${Date.now()}`,
+                  role: 'jarvis',
+                  content: `[WEB SEARCH] Query: "${query}" - Found ${searchResult.results.length} results`,
+                  timestamp: new Date()
+                }]);
+              } else {
+                result = { error: "Web search service not configured" };
+              }
+              break;
+
+            case 'deep_research':
+              if (researchServiceRef.current) {
+                const topicType = String(args.topic_type || 'general');
+                const query = String(args.query || '');
+                let researchResult;
+                
+                if (topicType === 'news') {
+                  researchResult = await researchServiceRef.current.researchNews(query);
+                } else if (topicType === 'finance') {
+                  researchResult = await researchServiceRef.current.researchFinance(query);
+                } else {
+                  researchResult = await researchServiceRef.current.research(query);
+                }
+                
+                result = {
+                  query: researchResult.query,
+                  answer: researchResult.answer,
+                  sources: researchResult.results.slice(0, 5).map(r => ({
+                    title: r.title,
+                    url: r.url,
+                    content: r.content.substring(0, 500)
+                  })),
+                  follow_up_questions: researchResult.follow_up_questions
+                };
+                
+                setMessages(prev => [...prev, {
+                  id: `research-${Date.now()}`,
+                  role: 'jarvis',
+                  content: `[RESEARCH] Topic: "${query}" - Analysis complete`,
+                  timestamp: new Date()
+                }]);
+              } else {
+                result = { error: "Research service not configured" };
+              }
+              break;
+
+            case 'get_deriv_account':
+              if (derivServiceRef.current) {
+                const accountInfo = await derivServiceRef.current.getAccountInfo();
+                result = accountInfo || { error: "Could not retrieve account info" };
+                
+                setMessages(prev => [...prev, {
+                  id: `deriv-account-${Date.now()}`,
+                  role: 'jarvis',
+                  content: `[DERIV] Account balance: ${accountInfo?.balance} ${accountInfo?.currency}`,
+                  timestamp: new Date()
+                }]);
+              } else {
+                result = { error: "Deriv trading service not connected" };
+              }
+              break;
+
+            case 'get_open_positions':
+              if (derivServiceRef.current) {
+                const positions = await derivServiceRef.current.getOpenPositions();
+                result = { positions, count: positions.length };
+                
+                setMessages(prev => [...prev, {
+                  id: `deriv-positions-${Date.now()}`,
+                  role: 'jarvis',
+                  content: `[DERIV] Open positions: ${positions.length}`,
+                  timestamp: new Date()
+                }]);
+              } else {
+                result = { error: "Deriv trading service not connected" };
+              }
+              break;
+
+            case 'get_symbol_price':
+              if (derivServiceRef.current && args.symbol) {
+                const symbol = String(args.symbol);
+                const price = await derivServiceRef.current.getSymbolPrice(symbol);
+                result = { symbol, price };
+                
+                setMessages(prev => [...prev, {
+                  id: `deriv-price-${Date.now()}`,
+                  role: 'jarvis',
+                  content: `[DERIV] ${symbol} price: ${price}`,
+                  timestamp: new Date()
+                }]);
+              } else {
+                result = { error: "Deriv service not connected or symbol not provided" };
+              }
+              break;
+
+            case 'buy_contract':
+              if (derivServiceRef.current) {
+                const tradeSymbol = String(args.symbol || 'R_100');
+                const contractType = String(args.contract_type || 'CALL') as 'CALL' | 'PUT' | 'DIGITOVER' | 'DIGITUNDER' | 'DIGITDIFF' | 'DIGITMATCH' | 'DIGITODD' | 'DIGITEVEN' | 'ONETOUCH' | 'NOTOUCH' | 'EXPIRYMISS' | 'EXPIRYRANGE';
+                const amount = Number(args.amount || 1);
+                const duration = Number(args.duration || 5);
+                const durationUnit = String(args.duration_unit || 't') as 's' | 'm' | 'h' | 'd' | 't';
+                const barrier = args.barrier ? String(args.barrier) : undefined;
+                
+                const tradeResult = await derivServiceRef.current.buyContract({
+                  symbol: tradeSymbol,
+                  contract_type: contractType,
+                  amount,
+                  duration,
+                  duration_unit: durationUnit,
+                  barrier
+                });
+                
+                result = tradeResult;
+                
+                setMessages(prev => [...prev, {
+                  id: `deriv-buy-${Date.now()}`,
+                  role: 'jarvis',
+                  content: tradeResult.success 
+                    ? `[TRADE] Bought ${contractType} on ${tradeSymbol} - Contract ID: ${tradeResult.contract_id}`
+                    : `[TRADE ERROR] ${tradeResult.error}`,
+                  timestamp: new Date()
+                }]);
+              } else {
+                result = { error: "Deriv trading service not connected" };
+              }
+              break;
+
+            case 'sell_contract':
+              if (derivServiceRef.current && args.contract_id) {
+                const contractId = String(args.contract_id);
+                const sellResult = await derivServiceRef.current.sellContract(contractId);
+                result = sellResult;
+                
+                setMessages(prev => [...prev, {
+                  id: `deriv-sell-${Date.now()}`,
+                  role: 'jarvis',
+                  content: sellResult.success 
+                    ? `[TRADE] Sold contract ${contractId}`
+                    : `[TRADE ERROR] ${sellResult.error}`,
+                  timestamp: new Date()
+                }]);
+              } else {
+                result = { error: "Deriv service not connected or contract ID not provided" };
+              }
+              break;
+
+            case 'get_mt5_accounts':
+              if (derivServiceRef.current) {
+                const mt5Accounts = await derivServiceRef.current.getMT5Accounts();
+                result = { accounts: mt5Accounts, count: mt5Accounts.length };
+                
+                setMessages(prev => [...prev, {
+                  id: `deriv-mt5-${Date.now()}`,
+                  role: 'jarvis',
+                  content: `[MT5] Found ${mt5Accounts.length} MT5 accounts`,
+                  timestamp: new Date()
+                }]);
+              } else {
+                result = { error: "Deriv trading service not connected" };
+              }
+              break;
+
+            case 'get_profit_table':
+              if (derivServiceRef.current) {
+                const limit = Number(args.limit || 20);
+                const profitTable = await derivServiceRef.current.getProfitTable(limit);
+                result = { transactions: profitTable, count: profitTable.length };
+                
+                setMessages(prev => [...prev, {
+                  id: `deriv-profit-${Date.now()}`,
+                  role: 'jarvis',
+                  content: `[DERIV] Retrieved ${profitTable.length} transactions from profit table`,
+                  timestamp: new Date()
+                }]);
+              } else {
+                result = { error: "Deriv trading service not connected" };
+              }
+              break;
+
+            default:
+              result = { error: `Unknown function: ${fc.name}` };
+          }
+        } catch (error) {
+          console.error(`Tool execution error for ${fc.name}:`, error);
+          result = { error: error instanceof Error ? error.message : 'Tool execution failed' };
         }
         
         if (sessionRef.current && isSessionActiveRef.current) {
@@ -357,7 +825,7 @@ const App: React.FC = () => {
           systemInstruction: getDynamicSystemInstruction(),
           speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: 'Kore' } } },
           inputAudioTranscription: {},
-          tools: [{functionDeclarations: [deactivateAssistantFunctionDeclaration]}],
+          tools: [{functionDeclarations: allFunctionDeclarations}],
         },
         callbacks: {
           onopen: () => {
@@ -519,10 +987,34 @@ const App: React.FC = () => {
     }
 
     const init = async () => {
+      // Detect iOS for special handling
+      const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || 
+                    (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+      
       try {
+        // Request microphone permission
         streamRef.current = await navigator.mediaDevices.getUserMedia({ audio: true });
+        
+        // Only start wake word detection if we got permission
+        // On iOS, this may still fail due to SpeechRecognition limitations
         startWakeWordDetection();
-      } catch (err) { console.warn("Mic access denied"); }
+      } catch (err: any) {
+        console.warn("Mic access issue:", err?.name, err?.message);
+        
+        // Don't show alarming alerts on iOS - it's expected behavior
+        if (!isIOS) {
+          // Even on desktop, just log a message instead of showing critical alert
+          setMessages(prev => [...prev, {
+            id: `sys-mic-init-${Date.now()}`,
+            role: 'jarvis',
+            content: "[SYSTEM] Microphone access not granted. Tap INITIALIZE to enable voice mode.",
+            timestamp: new Date()
+          }]);
+        }
+        
+        // Mark wake word as not supported since we can't get mic access
+        setIsWakeWordSupported(false);
+      }
     };
     init();
 
@@ -679,13 +1171,17 @@ const App: React.FC = () => {
                <div className="absolute top-[130%] sm:top-[140%] lg:top-[150%] left-1/2 -translate-x-1/2 flex flex-col items-center gap-3 sm:gap-4 lg:gap-5 w-full px-2">
                   <div className={`px-3 sm:px-4 lg:px-5 py-1.5 sm:py-2 lg:py-2.5 rounded-full text-[8px] sm:text-[9px] lg:text-[11px] font-orbitron border transition-all duration-500 flex items-center gap-1.5 sm:gap-2 tracking-[0.1em] sm:tracking-[0.15em] lg:tracking-[0.2em] whitespace-nowrap bg-black/70 backdrop-blur-md shadow-lg sm:shadow-2xl ${status === ConnectionStatus.CONNECTED ? 'border-green-500 text-green-400 shadow-[0_0_10px_rgba(34,197,94,0.4)] sm:shadow-[0_0_20px_rgba(34,197,94,0.4)]' : status === ConnectionStatus.CONNECTING ? 'border-yellow-500 text-yellow-400 animate-pulse' : systemAlert ? 'border-red-500 text-red-400 animate-pulse shadow-[0_0_10px_rgba(239,68,68,0.4)] sm:shadow-[0_0_20px_rgba(239,68,68,0.4)]' : isWakeWordListening ? 'border-cyan-500/50 text-cyan-300' : 'border-slate-500/50 text-slate-500'}`}>
                     <div className={`w-1 h-1 sm:w-1.5 sm:h-1.5 rounded-full ${status === ConnectionStatus.CONNECTED ? 'bg-green-400 animate-ping' : 'bg-current'}`}></div>
-                    <span className="hidden xs:inline">{isVoiceActive ? 'UPLINK SECURED' : systemAlert ? 'SYSTEM_OVERRIDE' : isWakeWordListening ? (isWakeWordSupported ? 'LISTENING: "HELLO JARVIS"' : 'MIC ACTIVE') : 'CORE IN STANDBY'}</span>
-                    <span className="xs:hidden">{isVoiceActive ? 'ACTIVE' : systemAlert ? 'ALERT' : isWakeWordListening ? 'LISTENING' : 'STANDBY'}</span>
+                    <span className="hidden xs:inline">{isVoiceActive ? 'UPLINK SECURED' : systemAlert ? 'SYSTEM_OVERRIDE' : isWakeWordListening ? 'LISTENING: "HELLO JARVIS"' : !isWakeWordSupported ? 'TAP INITIALIZE TO START' : 'CORE IN STANDBY'}</span>
+                    <span className="xs:hidden">{isVoiceActive ? 'ACTIVE' : systemAlert ? 'ALERT' : isWakeWordListening ? 'LISTENING' : !isWakeWordSupported ? 'TAP TO START' : 'STANDBY'}</span>
                   </div>
                   <div className="flex gap-2 sm:gap-4 lg:gap-6 items-center">
                      <div className="text-[7px] sm:text-[8px] lg:text-[10px] text-cyan-800 flex items-center gap-1 sm:gap-1.5 font-orbitron uppercase tracking-wider sm:tracking-widest"><MapPin className="w-2 h-2 sm:w-2.5 sm:h-2.5 lg:w-3 lg:h-3" /> <span className="hidden sm:inline">GPS_LOCKED</span><span className="sm:hidden">GPS</span></div>
                     <div className="h-3 sm:h-4 w-[1px] bg-cyan-500/10"></div>
-                    <button onClick={() => { shouldRestartRecognition.current = true; startWakeWordDetection(); }} className="text-[7px] sm:text-[8px] lg:text-[10px] text-cyan-900 hover:text-cyan-400 active:text-cyan-300 transition-colors flex items-center gap-1 sm:gap-1.5 font-orbitron tracking-tight sm:tracking-tighter"><RefreshCw className="w-2 h-2 sm:w-2.5 sm:h-2.5 lg:w-3 lg:h-3" /> <span className="hidden sm:inline">RESET_TRIGGER</span><span className="sm:hidden">RESET</span></button>
+                    {isWakeWordSupported ? (
+                      <button onClick={() => { shouldRestartRecognition.current = true; startWakeWordDetection(); }} className="text-[7px] sm:text-[8px] lg:text-[10px] text-cyan-900 hover:text-cyan-400 active:text-cyan-300 transition-colors flex items-center gap-1 sm:gap-1.5 font-orbitron tracking-tight sm:tracking-tighter"><RefreshCw className="w-2 h-2 sm:w-2.5 sm:h-2.5 lg:w-3 lg:h-3" /> <span className="hidden sm:inline">RESET_TRIGGER</span><span className="sm:hidden">RESET</span></button>
+                    ) : (
+                      <span className="text-[7px] sm:text-[8px] lg:text-[10px] text-cyan-700 font-orbitron tracking-tight">MANUAL MODE</span>
+                    )}
                   </div>
                </div>
             </div>

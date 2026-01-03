@@ -14,7 +14,10 @@ export default defineConfig(({ mode }) => {
         'process.env.AI_PROVIDER': JSON.stringify(env.AI_PROVIDER),
         'process.env.LOCAL_AI_URL': JSON.stringify(env.LOCAL_AI_URL),
         'process.env.LOCAL_AI_MODEL': JSON.stringify(env.LOCAL_AI_MODEL),
-        'process.env.GEMINI_API_KEY': JSON.stringify(env.GEMINI_API_KEY)
+        'process.env.GEMINI_API_KEY': JSON.stringify(env.GEMINI_API_KEY),
+        'process.env.SERP_API_KEY': JSON.stringify(env.SERP_API_KEY),
+        'process.env.TAVILY_API_KEY': JSON.stringify(env.TAVILY_API_KEY),
+        'process.env.DERIV_API_TOKEN': JSON.stringify(env.DERIV_API_TOKEN)
       },
       resolve: {
         alias: {
