@@ -1,5 +1,6 @@
 // Deriv Trading Service
 // Provides trading account management and MT5 position entry capabilities
+// Deployment-friendly implementation using Deriv's WebSocket API
 
 export interface AccountInfo {
   balance: number;
@@ -15,6 +16,11 @@ export interface MT5Account {
   leverage: number;
   server: string;
   account_type: string;
+  name?: string;
+  currency?: string;
+  display_balance?: string;
+  market_type?: string;
+  sub_account_type?: string;
 }
 
 export interface Position {
@@ -28,6 +34,20 @@ export interface Position {
   date_expiry?: number;
 }
 
+export interface MT5Position {
+  position_id: string;
+  symbol: string;
+  volume: number;
+  price_open: number;
+  price_current: number;
+  profit: number;
+  type: 'buy' | 'sell';
+  time_open: number;
+  stop_loss?: number;
+  take_profit?: number;
+  comment?: string;
+}
+
 export interface TradeResponse {
   success: boolean;
   contract_id?: string;
@@ -38,9 +58,19 @@ export interface TradeResponse {
 export interface MT5TradeResponse {
   success: boolean;
   order_id?: string;
+  ticket?: number;
   price?: number;
   volume?: number;
+  symbol?: string;
+  action?: string;
   error?: string;
+}
+
+export interface MT5Symbol {
+  symbol: string;
+  display_name: string;
+  market: string;
+  market_type: string;
 }
 
 type MessageHandler = (data: any) => void;
@@ -293,7 +323,7 @@ export class DerivTradingService {
     }
   }
 
-  // MT5 Functions
+  // MT5 Functions - Enhanced for proper trading
   async getMT5Accounts(): Promise<MT5Account[]> {
     try {
       const response = await this.sendRequest({
@@ -305,7 +335,12 @@ export class DerivTradingService {
         balance: account.balance,
         leverage: account.leverage,
         server: account.server,
-        account_type: account.account_type
+        account_type: account.account_type,
+        name: account.name,
+        currency: account.currency,
+        display_balance: account.display_balance,
+        market_type: account.market_type,
+        sub_account_type: account.sub_account_type
       }));
     } catch (error) {
       console.error('Get MT5 Accounts Error:', error);
@@ -326,7 +361,12 @@ export class DerivTradingService {
           balance: response.mt5_get_settings.balance,
           leverage: response.mt5_get_settings.leverage,
           server: response.mt5_get_settings.server || '',
-          account_type: response.mt5_get_settings.account_type
+          account_type: response.mt5_get_settings.account_type,
+          name: response.mt5_get_settings.name,
+          currency: response.mt5_get_settings.currency,
+          display_balance: response.mt5_get_settings.display_balance,
+          market_type: response.mt5_get_settings.market_type,
+          sub_account_type: response.mt5_get_settings.sub_account_type
         };
       }
       return null;
@@ -336,6 +376,39 @@ export class DerivTradingService {
     }
   }
 
+  // Get available MT5 symbols/instruments for trading
+  async getMT5Symbols(login: string): Promise<MT5Symbol[]> {
+    try {
+      const response = await this.sendRequest({
+        trading_servers: 1
+      });
+
+      // Get active symbols that are available for MT5
+      const symbolsResponse = await this.sendRequest({
+        active_symbols: 'full',
+        product_type: 'basic'
+      });
+
+      const mt5Symbols = (symbolsResponse.active_symbols || [])
+        .filter((s: any) => s.market_type_other === 'synthetic_index' || 
+                           s.submarket === 'forex' || 
+                           s.submarket === 'commodities' ||
+                           s.submarket === 'stocks')
+        .map((s: any) => ({
+          symbol: s.symbol,
+          display_name: s.display_name,
+          market: s.market,
+          market_type: s.market_type_other || s.submarket
+        }));
+
+      return mt5Symbols;
+    } catch (error) {
+      console.error('Get MT5 Symbols Error:', error);
+      return [];
+    }
+  }
+
+  // Place a new MT5 position/order
   async mt5NewOrder(params: {
     login: string;
     symbol: string;
@@ -348,26 +421,49 @@ export class DerivTradingService {
     comment?: string;
   }): Promise<MT5TradeResponse> {
     try {
-      const response = await this.sendRequest({
-        mt5_new_account: {
-          account_type: 'trading',
-          mt5_account_type: 'financial'
-        }
-      });
+      // For Deriv MT5, we use the mt5_new_order API call
+      // This requires the account to be an MT5 account
+      const orderRequest: any = {
+        mt5_new_order: 1,
+        login: params.login,
+        symbol: params.symbol,
+        volume: params.volume,
+        action: params.action, // 'buy' or 'sell'
+        type: params.order_type || 'market'
+      };
 
-      // Note: MT5 trading via Deriv API has specific requirements
-      // The actual implementation depends on your account setup
-      const tradeResponse = await this.sendRequest({
-        trading_servers: 1
-      });
+      // Add optional parameters
+      if (params.price && params.order_type !== 'market') {
+        orderRequest.price = params.price;
+      }
+      if (params.stop_loss) {
+        orderRequest.stop_loss = params.stop_loss;
+      }
+      if (params.take_profit) {
+        orderRequest.take_profit = params.take_profit;
+      }
+      if (params.comment) {
+        orderRequest.comment = params.comment;
+      }
 
-      // For MT5, we typically need to use a different approach
-      // This is a simplified version - full MT5 trading requires additional setup
+      console.log('Placing MT5 order:', orderRequest);
+      const response = await this.sendRequest(orderRequest);
+
+      if (response.error) {
+        return {
+          success: false,
+          error: response.error.message || 'MT5 order failed'
+        };
+      }
+
       return {
         success: true,
-        order_id: `mt5_${Date.now()}`,
+        order_id: response.mt5_new_order?.order_id?.toString(),
+        ticket: response.mt5_new_order?.ticket,
+        price: response.mt5_new_order?.price,
         volume: params.volume,
-        price: params.price
+        symbol: params.symbol,
+        action: params.action
       };
     } catch (error) {
       console.error('MT5 Order Error:', error);
@@ -375,6 +471,142 @@ export class DerivTradingService {
         success: false,
         error: error instanceof Error ? error.message : 'MT5 order failed'
       };
+    }
+  }
+
+  // Close/modify an existing MT5 position
+  async mt5ClosePosition(params: {
+    login: string;
+    ticket: number;
+    volume?: number; // Optional - for partial close
+  }): Promise<MT5TradeResponse> {
+    try {
+      const closeRequest: any = {
+        mt5_close_position: 1,
+        login: params.login,
+        ticket: params.ticket
+      };
+
+      if (params.volume) {
+        closeRequest.volume = params.volume;
+      }
+
+      console.log('Closing MT5 position:', closeRequest);
+      const response = await this.sendRequest(closeRequest);
+
+      if (response.error) {
+        return {
+          success: false,
+          error: response.error.message || 'Failed to close position'
+        };
+      }
+
+      return {
+        success: true,
+        ticket: params.ticket,
+        order_id: response.mt5_close_position?.order_id?.toString()
+      };
+    } catch (error) {
+      console.error('MT5 Close Position Error:', error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Failed to close position'
+      };
+    }
+  }
+
+  // Get open MT5 positions
+  async getMT5OpenPositions(login: string): Promise<MT5Position[]> {
+    try {
+      const response = await this.sendRequest({
+        mt5_open_positions: 1,
+        login
+      });
+
+      if (response.error) {
+        console.error('MT5 Open Positions Error:', response.error);
+        return [];
+      }
+
+      return (response.mt5_open_positions || []).map((pos: any) => ({
+        position_id: pos.position_id?.toString() || pos.ticket?.toString(),
+        symbol: pos.symbol,
+        volume: pos.volume,
+        price_open: pos.price_open || pos.open_price,
+        price_current: pos.price_current || pos.current_price,
+        profit: pos.profit,
+        type: pos.type === 0 ? 'buy' : 'sell',
+        time_open: pos.time_open || pos.open_time,
+        stop_loss: pos.sl,
+        take_profit: pos.tp,
+        comment: pos.comment
+      }));
+    } catch (error) {
+      console.error('Get MT5 Open Positions Error:', error);
+      return [];
+    }
+  }
+
+  // Modify an existing MT5 position (SL/TP)
+  async mt5ModifyPosition(params: {
+    login: string;
+    ticket: number;
+    stop_loss?: number;
+    take_profit?: number;
+  }): Promise<MT5TradeResponse> {
+    try {
+      const modifyRequest: any = {
+        mt5_modify_position: 1,
+        login: params.login,
+        ticket: params.ticket
+      };
+
+      if (params.stop_loss !== undefined) {
+        modifyRequest.stop_loss = params.stop_loss;
+      }
+      if (params.take_profit !== undefined) {
+        modifyRequest.take_profit = params.take_profit;
+      }
+
+      const response = await this.sendRequest(modifyRequest);
+
+      if (response.error) {
+        return {
+          success: false,
+          error: response.error.message || 'Failed to modify position'
+        };
+      }
+
+      return {
+        success: true,
+        ticket: params.ticket
+      };
+    } catch (error) {
+      console.error('MT5 Modify Position Error:', error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Failed to modify position'
+      };
+    }
+  }
+
+  // Get MT5 trading history
+  async getMT5TradeHistory(login: string, days: number = 30): Promise<any[]> {
+    try {
+      const now = Math.floor(Date.now() / 1000);
+      const fromDate = now - (days * 24 * 60 * 60);
+
+      const response = await this.sendRequest({
+        mt5_deal_history: 1,
+        login,
+        from: fromDate,
+        to: now
+      });
+
+      return response.mt5_deal_history || [];
+    } catch (error) {
+      console.error('Get MT5 Trade History Error:', error);
+      return [];
     }
   }
 

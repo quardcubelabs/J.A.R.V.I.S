@@ -183,6 +183,125 @@ const getMT5AccountsFunctionDeclaration: FunctionDeclaration = {
   }
 };
 
+const mt5PlaceOrderFunctionDeclaration: FunctionDeclaration = {
+  name: 'mt5_place_order',
+  description: 'Place a new trading position on MetaTrader 5. Supports buy and sell orders with optional stop loss and take profit.',
+  parameters: {
+    type: Type.OBJECT,
+    properties: {
+      login: {
+        type: Type.STRING,
+        description: 'MT5 account login ID. Get this from get_mt5_accounts first.'
+      },
+      symbol: {
+        type: Type.STRING,
+        description: 'Trading symbol (e.g., "Volatility 75 Index", "EURUSD", "XAUUSD", "Step Index")'
+      },
+      action: {
+        type: Type.STRING,
+        description: 'Trade direction: "buy" or "sell"'
+      },
+      volume: {
+        type: Type.NUMBER,
+        description: 'Lot size/volume for the trade (e.g., 0.01, 0.1, 1.0)'
+      },
+      stop_loss: {
+        type: Type.NUMBER,
+        description: 'Optional stop loss price level'
+      },
+      take_profit: {
+        type: Type.NUMBER,
+        description: 'Optional take profit price level'
+      },
+      comment: {
+        type: Type.STRING,
+        description: 'Optional trade comment (e.g., "JARVIS trade")'
+      }
+    },
+    required: ['login', 'symbol', 'action', 'volume']
+  }
+};
+
+const mt5ClosePositionFunctionDeclaration: FunctionDeclaration = {
+  name: 'mt5_close_position',
+  description: 'Close an open MT5 position.',
+  parameters: {
+    type: Type.OBJECT,
+    properties: {
+      login: {
+        type: Type.STRING,
+        description: 'MT5 account login ID'
+      },
+      ticket: {
+        type: Type.NUMBER,
+        description: 'Position ticket number to close'
+      },
+      volume: {
+        type: Type.NUMBER,
+        description: 'Optional partial volume to close. Leave empty to close entire position.'
+      }
+    },
+    required: ['login', 'ticket']
+  }
+};
+
+const mt5GetOpenPositionsFunctionDeclaration: FunctionDeclaration = {
+  name: 'mt5_get_open_positions',
+  description: 'Get all currently open positions on an MT5 account.',
+  parameters: {
+    type: Type.OBJECT,
+    properties: {
+      login: {
+        type: Type.STRING,
+        description: 'MT5 account login ID. Get this from get_mt5_accounts first.'
+      }
+    },
+    required: ['login']
+  }
+};
+
+const mt5ModifyPositionFunctionDeclaration: FunctionDeclaration = {
+  name: 'mt5_modify_position',
+  description: 'Modify stop loss or take profit on an existing MT5 position.',
+  parameters: {
+    type: Type.OBJECT,
+    properties: {
+      login: {
+        type: Type.STRING,
+        description: 'MT5 account login ID'
+      },
+      ticket: {
+        type: Type.NUMBER,
+        description: 'Position ticket number to modify'
+      },
+      stop_loss: {
+        type: Type.NUMBER,
+        description: 'New stop loss price level'
+      },
+      take_profit: {
+        type: Type.NUMBER,
+        description: 'New take profit price level'
+      }
+    },
+    required: ['login', 'ticket']
+  }
+};
+
+const mt5GetSymbolsFunctionDeclaration: FunctionDeclaration = {
+  name: 'mt5_get_symbols',
+  description: 'Get available trading symbols/instruments for MT5 trading.',
+  parameters: {
+    type: Type.OBJECT,
+    properties: {
+      login: {
+        type: Type.STRING,
+        description: 'MT5 account login ID'
+      }
+    },
+    required: ['login']
+  }
+};
+
 const getProfitTableFunctionDeclaration: FunctionDeclaration = {
   name: 'get_profit_table',
   description: 'Get the profit/loss history of recent trades.',
@@ -208,6 +327,11 @@ const allFunctionDeclarations: FunctionDeclaration[] = [
   buyContractFunctionDeclaration,
   sellContractFunctionDeclaration,
   getMT5AccountsFunctionDeclaration,
+  mt5PlaceOrderFunctionDeclaration,
+  mt5ClosePositionFunctionDeclaration,
+  mt5GetOpenPositionsFunctionDeclaration,
+  mt5ModifyPositionFunctionDeclaration,
+  mt5GetSymbolsFunctionDeclaration,
   getProfitTableFunctionDeclaration
 ];
 
@@ -307,16 +431,33 @@ CURRENT STATUS:
 CAPABILITIES:
 1. WEB SEARCH (web_search): Search the internet for current information, news, images
 2. DEEP RESEARCH (deep_research): Conduct comprehensive research with citations on any topic
-3. DERIV TRADING: Full trading capabilities including:
+
+3. DERIV TRADING (Binary Options):
    - get_deriv_account: Check account balance and status
-   - get_open_positions: View current open trades
+   - get_open_positions: View current open Deriv trades
    - get_symbol_price: Get real-time prices for symbols
    - buy_contract: Enter CALL/PUT positions, digit trades
    - sell_contract: Close positions early
-   - get_mt5_accounts: View MT5 account details
    - get_profit_table: View trading history and P&L
 
-TRADING SYMBOLS: R_100 (Volatility 100), R_50 (Volatility 50), R_25 (Volatility 25), R_10 (Volatility 10), frxEURUSD, frxGBPUSD, etc.
+4. METATRADER 5 (MT5) TRADING - Full CFD/Forex trading:
+   - get_mt5_accounts: List all MT5 accounts (ALWAYS call this first to get login ID)
+   - mt5_place_order: Place buy/sell positions on MT5 (requires login from get_mt5_accounts)
+   - mt5_get_open_positions: View all open MT5 positions
+   - mt5_close_position: Close an MT5 position by ticket number
+   - mt5_modify_position: Modify stop loss/take profit on MT5 positions
+   - mt5_get_symbols: Get available MT5 trading symbols
+
+MT5 TRADING WORKFLOW:
+1. First call get_mt5_accounts to get the MT5 login ID
+2. Then use that login to place orders with mt5_place_order
+3. Example: To buy EURUSD on MT5, first get accounts, then call mt5_place_order with login, symbol="EURUSD", action="buy", volume=0.01
+
+POPULAR MT5 SYMBOLS:
+- Forex: EURUSD, GBPUSD, USDJPY, XAUUSD (Gold)
+- Synthetics: Volatility 75 Index, Volatility 100 Index, Step Index, Boom 1000, Crash 1000
+
+DERIV BINARY SYMBOLS: R_100 (Volatility 100), R_50 (Volatility 50), R_25 (Volatility 25), R_10 (Volatility 10), frxEURUSD, frxGBPUSD
 
 Important Protocol: If the user says "thanks bye", say a very brief, polite farewell and acknowledge that you are entering standby mode.`;
   }, [batteryLevel, attachedFiles]);
@@ -726,9 +867,165 @@ Important Protocol: If the user says "thanks bye", say a very brief, polite fare
                 setMessages(prev => [...prev, {
                   id: `deriv-mt5-${Date.now()}`,
                   role: 'jarvis',
-                  content: `[MT5] Found ${mt5Accounts.length} MT5 accounts`,
+                  content: `[MT5] Found ${mt5Accounts.length} MT5 account(s): ${mt5Accounts.map(a => a.login).join(', ')}`,
                   timestamp: new Date()
                 }]);
+              } else {
+                result = { error: "Deriv trading service not connected" };
+              }
+              break;
+
+            case 'mt5_place_order':
+              if (derivServiceRef.current) {
+                const mt5Login = String(args.login || '');
+                const mt5Symbol = String(args.symbol || '');
+                const mt5Action = String(args.action || 'buy') as 'buy' | 'sell';
+                const mt5Volume = Number(args.volume || 0.01);
+                const mt5StopLoss = args.stop_loss ? Number(args.stop_loss) : undefined;
+                const mt5TakeProfit = args.take_profit ? Number(args.take_profit) : undefined;
+                const mt5Comment = args.comment ? String(args.comment) : 'JARVIS Trade';
+
+                if (!mt5Login) {
+                  result = { error: "MT5 login required. Please call get_mt5_accounts first to get the login ID." };
+                } else if (!mt5Symbol) {
+                  result = { error: "Symbol is required for MT5 order." };
+                } else {
+                  const orderResult = await derivServiceRef.current.mt5NewOrder({
+                    login: mt5Login,
+                    symbol: mt5Symbol,
+                    volume: mt5Volume,
+                    action: mt5Action,
+                    stop_loss: mt5StopLoss,
+                    take_profit: mt5TakeProfit,
+                    comment: mt5Comment
+                  });
+                  
+                  result = orderResult;
+                  
+                  setMessages(prev => [...prev, {
+                    id: `mt5-order-${Date.now()}`,
+                    role: 'jarvis',
+                    content: orderResult.success 
+                      ? `[MT5 TRADE] ${mt5Action.toUpperCase()} ${mt5Volume} lots of ${mt5Symbol} - Ticket: ${orderResult.ticket || orderResult.order_id}`
+                      : `[MT5 ERROR] ${orderResult.error}`,
+                    timestamp: new Date()
+                  }]);
+                }
+              } else {
+                result = { error: "Deriv trading service not connected" };
+              }
+              break;
+
+            case 'mt5_close_position':
+              if (derivServiceRef.current) {
+                const closeLogin = String(args.login || '');
+                const closeTicket = Number(args.ticket || 0);
+                const closeVolume = args.volume ? Number(args.volume) : undefined;
+
+                if (!closeLogin || !closeTicket) {
+                  result = { error: "Both login and ticket are required to close a position." };
+                } else {
+                  const closeResult = await derivServiceRef.current.mt5ClosePosition({
+                    login: closeLogin,
+                    ticket: closeTicket,
+                    volume: closeVolume
+                  });
+                  
+                  result = closeResult;
+                  
+                  setMessages(prev => [...prev, {
+                    id: `mt5-close-${Date.now()}`,
+                    role: 'jarvis',
+                    content: closeResult.success 
+                      ? `[MT5] Position #${closeTicket} closed successfully`
+                      : `[MT5 ERROR] ${closeResult.error}`,
+                    timestamp: new Date()
+                  }]);
+                }
+              } else {
+                result = { error: "Deriv trading service not connected" };
+              }
+              break;
+
+            case 'mt5_get_open_positions':
+              if (derivServiceRef.current) {
+                const posLogin = String(args.login || '');
+                
+                if (!posLogin) {
+                  result = { error: "MT5 login required. Please call get_mt5_accounts first." };
+                } else {
+                  const positions = await derivServiceRef.current.getMT5OpenPositions(posLogin);
+                  result = { 
+                    positions, 
+                    count: positions.length,
+                    summary: positions.map(p => `${p.type.toUpperCase()} ${p.volume} ${p.symbol} @ ${p.price_open} (P/L: ${p.profit})`).join('\n')
+                  };
+                  
+                  setMessages(prev => [...prev, {
+                    id: `mt5-positions-${Date.now()}`,
+                    role: 'jarvis',
+                    content: `[MT5] ${positions.length} open position(s)`,
+                    timestamp: new Date()
+                  }]);
+                }
+              } else {
+                result = { error: "Deriv trading service not connected" };
+              }
+              break;
+
+            case 'mt5_modify_position':
+              if (derivServiceRef.current) {
+                const modLogin = String(args.login || '');
+                const modTicket = Number(args.ticket || 0);
+                const modSL = args.stop_loss ? Number(args.stop_loss) : undefined;
+                const modTP = args.take_profit ? Number(args.take_profit) : undefined;
+
+                if (!modLogin || !modTicket) {
+                  result = { error: "Both login and ticket are required to modify a position." };
+                } else {
+                  const modResult = await derivServiceRef.current.mt5ModifyPosition({
+                    login: modLogin,
+                    ticket: modTicket,
+                    stop_loss: modSL,
+                    take_profit: modTP
+                  });
+                  
+                  result = modResult;
+                  
+                  setMessages(prev => [...prev, {
+                    id: `mt5-modify-${Date.now()}`,
+                    role: 'jarvis',
+                    content: modResult.success 
+                      ? `[MT5] Position #${modTicket} modified - SL: ${modSL || 'unchanged'}, TP: ${modTP || 'unchanged'}`
+                      : `[MT5 ERROR] ${modResult.error}`,
+                    timestamp: new Date()
+                  }]);
+                }
+              } else {
+                result = { error: "Deriv trading service not connected" };
+              }
+              break;
+
+            case 'mt5_get_symbols':
+              if (derivServiceRef.current) {
+                const symLogin = String(args.login || '');
+                
+                if (!symLogin) {
+                  result = { error: "MT5 login required." };
+                } else {
+                  const symbols = await derivServiceRef.current.getMT5Symbols(symLogin);
+                  result = { 
+                    symbols: symbols.slice(0, 50), // Limit to 50 symbols
+                    count: symbols.length 
+                  };
+                  
+                  setMessages(prev => [...prev, {
+                    id: `mt5-symbols-${Date.now()}`,
+                    role: 'jarvis',
+                    content: `[MT5] Retrieved ${symbols.length} available trading symbols`,
+                    timestamp: new Date()
+                  }]);
+                }
               } else {
                 result = { error: "Deriv trading service not connected" };
               }
