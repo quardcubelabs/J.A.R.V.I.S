@@ -773,8 +773,21 @@ Important Protocol: If the user says "thanks bye", say a very brief, polite fare
   const activateVoice = async () => {
     if (isVoiceActive || status === ConnectionStatus.CONNECTING) return;
     
+    console.log("JARVIS: Initiating core activation...");
     setStatus(ConnectionStatus.CONNECTING);
     isSessionActiveRef.current = true;
+
+    // Add a message so user knows something is happening
+    setMessages(prev => [...prev, {
+      id: `sys-init-${Date.now()}`,
+      role: 'jarvis',
+      content: "[SYSTEM] Initializing voice uplink...",
+      timestamp: new Date()
+    }]);
+
+    // Track connection timeout at function scope
+    let connectionTimeout: ReturnType<typeof setTimeout> | null = null;
+    let isConnecting = true;
 
     try {
       shouldRestartRecognition.current = false;
@@ -789,6 +802,11 @@ Important Protocol: If the user says "thanks bye", say a very brief, polite fare
       setIsAudioDetected(false);
       setStandbyTranscript('');
       
+      // Check API key
+      if (!process.env.GEMINI_API_KEY) {
+        throw new Error("GEMINI_API_KEY not configured");
+      }
+      
       const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY as string });
       
       if (scriptProcessorRef.current) {
@@ -800,23 +818,63 @@ Important Protocol: If the user says "thanks bye", say a very brief, polite fare
       if (audioContextRef.current) await audioContextRef.current.close().catch(() => {});
       if (inputAudioContextRef.current) await inputAudioContextRef.current.close().catch(() => {});
       
+      // Create output AudioContext
       const outCtx = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 24000 });
+      // Resume AudioContext (required on mobile after user gesture)
+      if (outCtx.state === 'suspended') {
+        await outCtx.resume();
+      }
       audioContextRef.current = outCtx;
       const outAnalyser = outCtx.createAnalyser();
       outAnalyser.fftSize = 256;
       outAnalyser.connect(outCtx.destination);
       outputAnalyserRef.current = outAnalyser;
       
+      // Create input AudioContext
       const inCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
+      if (inCtx.state === 'suspended') {
+        await inCtx.resume();
+      }
       inputAudioContextRef.current = inCtx;
       const inAnalyser = inCtx.createAnalyser();
       inAnalyser.fftSize = 256;
       inputAnalyserRef.current = inAnalyser;
       
+      // Get microphone access
       if (!streamRef.current) {
-        streamRef.current = await navigator.mediaDevices.getUserMedia({ audio: true });
+        console.log("JARVIS: Requesting microphone access...");
+        try {
+          streamRef.current = await navigator.mediaDevices.getUserMedia({ audio: true });
+        } catch (micErr: any) {
+          console.error("Microphone access denied:", micErr);
+          setMessages(prev => [...prev, {
+            id: `sys-mic-err-${Date.now()}`,
+            role: 'jarvis',
+            content: "[ERROR] Microphone access denied. Please allow microphone permission and try again.",
+            timestamp: new Date()
+          }]);
+          throw micErr;
+        }
       }
       const stream = streamRef.current;
+      
+      console.log("JARVIS: Connecting to Gemini Live API...");
+      
+      // Create a timeout for connection
+      connectionTimeout = setTimeout(() => {
+        if (isConnecting) {
+          console.error("Connection timeout");
+          isConnecting = false;
+          setMessages(prev => [...prev, {
+            id: `sys-timeout-${Date.now()}`,
+            role: 'jarvis',
+            content: "[ERROR] Connection timeout. Please check your internet connection and try again.",
+            timestamp: new Date()
+          }]);
+          deactivateVoice();
+          setStatus(ConnectionStatus.ERROR);
+        }
+      }, 15000); // 15 second timeout
       
       const sessionPromise = ai.live.connect({
         model: MODEL_NAME,
@@ -830,6 +888,8 @@ Important Protocol: If the user says "thanks bye", say a very brief, polite fare
         callbacks: {
           onopen: () => {
             if (!isSessionActiveRef.current) return;
+            clearTimeout(connectionTimeout); // Clear the timeout on successful connection
+            console.log("JARVIS: Connection established.");
             reconnectAttemptsRef.current = 0;
             setStatus(ConnectionStatus.CONNECTED);
             setIsVoiceActive(true);
@@ -888,8 +948,23 @@ Important Protocol: If the user says "thanks bye", say a very brief, polite fare
         }
       });
       sessionRef.current = await sessionPromise;
-    } catch (err) { 
-      console.error("Core initialization failed.", err); 
+      isConnecting = false;
+      if (connectionTimeout) clearTimeout(connectionTimeout);
+      console.log("JARVIS: Core activation successful.");
+    } catch (err: any) { 
+      console.error("Core initialization failed.", err);
+      isConnecting = false;
+      if (connectionTimeout) clearTimeout(connectionTimeout);
+      
+      // Provide user feedback about the error
+      const errorMessage = err?.message || "Unknown error";
+      setMessages(prev => [...prev, {
+        id: `sys-err-${Date.now()}`,
+        role: 'jarvis',
+        content: `[ERROR] Core initialization failed: ${errorMessage}. Please check your connection and try again.`,
+        timestamp: new Date()
+      }]);
+      
       deactivateVoice();
       setStatus(ConnectionStatus.ERROR);
     }
