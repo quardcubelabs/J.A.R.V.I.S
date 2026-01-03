@@ -366,9 +366,11 @@ Important Protocol: If the user says "thanks bye", say a very brief, polite fare
     // Check for SpeechRecognition support
     const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
     
-    // Detect iOS
+    // Detect mobile platforms
     const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || 
                   (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    const isAndroid = /Android/.test(navigator.userAgent);
+    const isMobile = isIOS || isAndroid;
     
     if (!SpeechRecognition) {
       console.log("SpeechRecognition not supported on this device");
@@ -376,19 +378,20 @@ Important Protocol: If the user says "thanks bye", say a very brief, polite fare
       return;
     }
 
-    // On iOS, SpeechRecognition is very limited and often fails
-    // We'll try it but handle failures gracefully
+    // Try to enable wake word on all platforms
     if (recognitionRef.current) {
       try { recognitionRef.current.stop(); } catch(e) {}
     }
 
     const recognition = new SpeechRecognition();
-    recognition.continuous = !isIOS; // iOS doesn't support continuous well
+    // Enable continuous mode - works on Android, limited on iOS but we'll try
+    recognition.continuous = true;
     recognition.interimResults = true;
     recognition.lang = 'en-US';
 
     recognition.onstart = () => {
       setIsWakeWordListening(true);
+      setIsWakeWordSupported(true);
       setSystemAlert(null); // Clear any previous alerts
       console.log("Acoustic trigger active: Monitoring for 'Hello JARVIS'...");
     };
@@ -431,21 +434,16 @@ Important Protocol: If the user says "thanks bye", say a very brief, polite fare
       
       // Handle different error types gracefully
       if (e.error === 'not-allowed') {
-        // On iOS/mobile, don't show a critical alert - just disable the feature
-        if (isIOS) {
-          console.log("SpeechRecognition not allowed on iOS - using manual activation");
-          setIsWakeWordSupported(false);
-        } else {
-          // On desktop, show a less alarming message
-          setMessages(prev => [...prev, {
-            id: `sys-mic-${Date.now()}`,
-            role: 'jarvis',
-            content: "[SYSTEM] Wake word detection unavailable. Use the INITIALIZE button to activate voice mode.",
-            timestamp: new Date()
-          }]);
-        }
+        // Microphone permission denied
+        setMessages(prev => [...prev, {
+          id: `sys-mic-${Date.now()}`,
+          role: 'jarvis',
+          content: "[SYSTEM] Microphone permission needed for wake word. Please allow and tap RESET_TRIGGER.",
+          timestamp: new Date()
+        }]);
+        setIsWakeWordSupported(false);
       } else if (e.error === 'no-speech' || e.error === 'aborted') {
-        // These are normal, don't show alerts
+        // These are normal on mobile, don't show alerts - just restart
       } else if (e.error === 'network') {
         console.log("SpeechRecognition network error - may need online connection");
       }
@@ -456,12 +454,13 @@ Important Protocol: If the user says "thanks bye", say a very brief, polite fare
     recognition.onend = () => {
       setIsWakeWordListening(false);
       setIsAudioDetected(false);
-      // Continuous restart unless we are transitioning to active mode
-      // On iOS, we won't restart automatically due to limitations
-      if (!isIOS && shouldRestartRecognition.current && !isSessionActiveRef.current) {
+      // Continuous restart on ALL platforms unless we are transitioning to active mode
+      if (shouldRestartRecognition.current && !isSessionActiveRef.current) {
         setTimeout(() => {
            if (shouldRestartRecognition.current && !isSessionActiveRef.current) {
-             try { recognition.start(); } catch(e) {}
+             try { recognition.start(); } catch(e) {
+               console.warn("Failed to restart recognition:", e);
+             }
            }
         }, 300);
       }
@@ -1234,8 +1233,8 @@ Important Protocol: If the user says "thanks bye", say a very brief, polite fare
         {/* Central Display Area */}
         <div className="flex-1 relative flex items-center justify-center min-h-0 py-2 sm:py-4 lg:py-0">
           
-          {/* Unified Co-Centered Container */}
-          <div className="relative w-full h-full flex items-center justify-center">
+          {/* Unified Co-Centered Container - shifted up */}
+          <div className="relative w-full h-full flex items-center justify-center overflow-visible" style={{ marginTop: '-8%' }}>
             
             {/* Background HUD Graphics - Responsive sizing */}
             <div className="absolute inset-0 flex items-center justify-center opacity-20 pointer-events-none z-0 overflow-visible">
@@ -1246,8 +1245,9 @@ Important Protocol: If the user says "thanks bye", say a very brief, polite fare
             </div>
 
             {/* Core Visualizer Component - Responsive sizing */}
-            <div className="relative w-[24vmin] sm:w-[26vmin] lg:w-[28vmin] h-[24vmin] sm:h-[26vmin] lg:h-[28vmin] min-w-[100px] sm:min-w-[120px] min-h-[100px] sm:min-h-[120px] max-w-[200px] sm:max-w-[240px] lg:max-w-[280px] max-h-[200px] sm:max-h-[240px] lg:max-h-[280px] flex items-center justify-center z-10">
-               <canvas ref={canvasRef} width={500} height={500} className="absolute inset-0 w-full h-full pointer-events-none z-10 opacity-80" />
+            <div className="relative w-[24vmin] sm:w-[26vmin] lg:w-[28vmin] h-[24vmin] sm:h-[26vmin] lg:h-[28vmin] min-w-[100px] sm:min-w-[120px] min-h-[100px] sm:min-h-[120px] max-w-[200px] sm:max-w-[240px] lg:max-w-[280px] max-h-[200px] sm:max-h-[240px] lg:max-h-[280px] flex items-center justify-center z-10 overflow-visible">
+               {/* Canvas for audio visualization - larger to show full circular animation */}
+               <canvas ref={canvasRef} width={500} height={500} className="absolute w-[200%] h-[200%] pointer-events-none z-10 opacity-80" style={{ left: '-50%', top: '-50%' }} />
                
                {/* Dynamic Glow Layer */}
                <div className={`absolute w-[110%] h-[110%] rounded-full transition-all duration-300 ${isVoiceActive ? 'bg-green-500/20 scale-125 blur-2xl sm:blur-3xl' : (isAudioDetected || systemAlert) ? 'bg-cyan-500/30 scale-125 blur-2xl sm:blur-3xl' : 'bg-transparent'}`}></div>
@@ -1262,8 +1262,8 @@ Important Protocol: If the user says "thanks bye", say a very brief, polite fare
                   {isVoiceActive && <div className="absolute inset-0 flex items-center justify-center"><div className="w-full h-full border-2 border-green-400 rounded-full animate-ping opacity-20"></div></div>}
                </button>
 
-               {/* Status Badge - Responsive positioning */}
-               <div className="absolute top-[130%] sm:top-[140%] lg:top-[150%] left-1/2 -translate-x-1/2 flex flex-col items-center gap-3 sm:gap-4 lg:gap-5 w-full px-2">
+               {/* Status Badge - Responsive positioning - moved further down */}
+               <div className="absolute top-[160%] sm:top-[170%] lg:top-[180%] left-1/2 -translate-x-1/2 flex flex-col items-center gap-3 sm:gap-4 lg:gap-5 w-full px-2">
                   <div className={`px-3 sm:px-4 lg:px-5 py-1.5 sm:py-2 lg:py-2.5 rounded-full text-[8px] sm:text-[9px] lg:text-[11px] font-orbitron border transition-all duration-500 flex items-center gap-1.5 sm:gap-2 tracking-[0.1em] sm:tracking-[0.15em] lg:tracking-[0.2em] whitespace-nowrap bg-black/70 backdrop-blur-md shadow-lg sm:shadow-2xl ${status === ConnectionStatus.CONNECTED ? 'border-green-500 text-green-400 shadow-[0_0_10px_rgba(34,197,94,0.4)] sm:shadow-[0_0_20px_rgba(34,197,94,0.4)]' : status === ConnectionStatus.CONNECTING ? 'border-yellow-500 text-yellow-400 animate-pulse' : systemAlert ? 'border-red-500 text-red-400 animate-pulse shadow-[0_0_10px_rgba(239,68,68,0.4)] sm:shadow-[0_0_20px_rgba(239,68,68,0.4)]' : isWakeWordListening ? 'border-cyan-500/50 text-cyan-300' : 'border-slate-500/50 text-slate-500'}`}>
                     <div className={`w-1 h-1 sm:w-1.5 sm:h-1.5 rounded-full ${status === ConnectionStatus.CONNECTED ? 'bg-green-400 animate-ping' : 'bg-current'}`}></div>
                     <span className="hidden xs:inline">{isVoiceActive ? 'UPLINK SECURED' : status === ConnectionStatus.CONNECTING ? 'CONNECTING...' : systemAlert ? 'SYSTEM_OVERRIDE' : isWakeWordListening ? 'LISTENING: "HELLO JARVIS"' : 'ACOUSTICS ACTIVE'}</span>
