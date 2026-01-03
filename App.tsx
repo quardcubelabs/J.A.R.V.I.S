@@ -1101,20 +1101,7 @@ Important Protocol: If the user says "thanks bye", say a very brief, polite fare
         </button>
       </div>
 
-      {/* Mobile Floating INITIALIZE Button - Always visible on mobile */}
-      <div className="lg:hidden fixed bottom-0 left-0 right-0 p-3 sm:p-4 bg-slate-950/95 backdrop-blur-md border-t border-cyan-500/20 z-50 safe-area-bottom">
-        <button 
-          disabled={status === ConnectionStatus.CONNECTING}
-          onClick={isVoiceActive ? deactivateVoice : activateVoice} 
-          className={`w-full py-3 sm:py-4 rounded-xl font-orbitron flex items-center justify-center gap-2 sm:gap-3 transition-all duration-500 shadow-xl relative overflow-hidden group border-2 ${isVoiceActive ? 'bg-green-600/80 border-green-400 text-white shadow-[0_0_20px_rgba(34,197,94,0.5)]' : 'bg-cyan-900/30 border-cyan-400/50 text-cyan-300 hover:bg-cyan-500/20 active:bg-cyan-500/30'} ${status === ConnectionStatus.CONNECTING ? 'opacity-50 cursor-not-allowed' : ''}`}
-        >
-          {isVoiceActive ? <MicOff className="w-5 h-5 animate-pulse" /> : <Mic className="w-5 h-5" />}
-          <span className="tracking-[0.15em] sm:tracking-[0.2em] text-xs sm:text-sm font-bold uppercase">{isVoiceActive ? 'TERMINATE' : status === ConnectionStatus.CONNECTING ? 'CONNECTING...' : 'INITIALIZE'}</span>
-          {isVoiceActive && <div className="absolute inset-0 bg-white/10 animate-ping pointer-events-none"></div>}
-        </button>
-      </div>
-
-      <div className="relative z-10 flex flex-col lg:flex-row h-full w-full p-2 sm:p-4 lg:p-6 gap-2 sm:gap-4 lg:gap-6 pt-12 sm:pt-16 lg:pt-6 pb-20 lg:pb-6 overflow-hidden landscape-compact">
+      <div className="relative z-10 flex flex-col lg:flex-row h-full w-full p-2 sm:p-4 lg:p-6 gap-2 sm:gap-4 lg:gap-6 pt-12 sm:pt-16 lg:pt-6 overflow-hidden landscape-compact">
         
         {/* Left Sidebar - Stats & Files */}
         <div className={`flex-col w-full lg:w-72 xl:w-80 gap-2 sm:gap-4 transition-all duration-500 ${isMobileMenuOpen ? 'flex absolute inset-0 bg-slate-950/98 z-40 p-4 sm:p-6 pt-16 sm:pt-20 overflow-y-auto' : (!showStats && !isMobileMenuOpen) ? 'hidden' : 'hidden lg:flex'}`}>
@@ -1174,18 +1161,22 @@ Important Protocol: If the user says "thanks bye", say a very brief, polite fare
                {/* Dynamic Glow Layer */}
                <div className={`absolute w-[110%] h-[110%] rounded-full transition-all duration-300 ${isVoiceActive ? 'bg-green-500/20 scale-125 blur-2xl sm:blur-3xl' : (isAudioDetected || systemAlert) ? 'bg-cyan-500/30 scale-125 blur-2xl sm:blur-3xl' : 'bg-transparent'}`}></div>
                
-               {/* Main Zap Icon Hub */}
-               <div className={`w-[44%] h-[44%] min-w-[40px] min-h-[40px] rounded-full flex items-center justify-center transition-all duration-500 shadow-xl sm:shadow-2xl relative z-20 ${isVoiceActive ? 'bg-green-500 shadow-[0_0_30px_rgba(34,197,94,1)] sm:shadow-[0_0_60px_rgba(34,197,94,1)] scale-110 border-2 border-green-300' : systemAlert ? 'bg-red-600 shadow-[0_0_20px_rgba(239,68,68,0.6)] sm:shadow-[0_0_40px_rgba(239,68,68,0.6)] border border-red-400' : isAudioDetected ? 'bg-cyan-600 shadow-[0_0_20px_rgba(6,182,212,0.8)] sm:shadow-[0_0_40px_rgba(6,182,212,0.8)] scale-105 border border-cyan-300' : 'bg-slate-900 border border-cyan-500/30'}`}>
+               {/* Main Zap Icon Hub - Clickable to Initialize */}
+               <button 
+                 onClick={isVoiceActive ? deactivateVoice : activateVoice}
+                 disabled={status === ConnectionStatus.CONNECTING}
+                 className={`w-[44%] h-[44%] min-w-[40px] min-h-[40px] rounded-full flex items-center justify-center transition-all duration-500 shadow-xl sm:shadow-2xl relative z-20 cursor-pointer active:scale-95 ${isVoiceActive ? 'bg-green-500 shadow-[0_0_30px_rgba(34,197,94,1)] sm:shadow-[0_0_60px_rgba(34,197,94,1)] scale-110 border-2 border-green-300' : systemAlert ? 'bg-red-600 shadow-[0_0_20px_rgba(239,68,68,0.6)] sm:shadow-[0_0_40px_rgba(239,68,68,0.6)] border border-red-400' : isAudioDetected ? 'bg-cyan-600 shadow-[0_0_20px_rgba(6,182,212,0.8)] sm:shadow-[0_0_40px_rgba(6,182,212,0.8)] scale-105 border border-cyan-300' : 'bg-slate-900 border border-cyan-500/30 hover:bg-slate-800 hover:border-cyan-400/50'} ${status === ConnectionStatus.CONNECTING ? 'opacity-50 cursor-wait' : ''}`}
+               >
                   <Zap className={`w-1/2 h-1/2 transition-colors duration-500 ${isVoiceActive ? 'text-white' : 'text-cyan-800'}`} />
                   {isVoiceActive && <div className="absolute inset-0 flex items-center justify-center"><div className="w-full h-full border-2 border-green-400 rounded-full animate-ping opacity-20"></div></div>}
-               </div>
+               </button>
 
                {/* Status Badge - Responsive positioning */}
                <div className="absolute top-[130%] sm:top-[140%] lg:top-[150%] left-1/2 -translate-x-1/2 flex flex-col items-center gap-3 sm:gap-4 lg:gap-5 w-full px-2">
                   <div className={`px-3 sm:px-4 lg:px-5 py-1.5 sm:py-2 lg:py-2.5 rounded-full text-[8px] sm:text-[9px] lg:text-[11px] font-orbitron border transition-all duration-500 flex items-center gap-1.5 sm:gap-2 tracking-[0.1em] sm:tracking-[0.15em] lg:tracking-[0.2em] whitespace-nowrap bg-black/70 backdrop-blur-md shadow-lg sm:shadow-2xl ${status === ConnectionStatus.CONNECTED ? 'border-green-500 text-green-400 shadow-[0_0_10px_rgba(34,197,94,0.4)] sm:shadow-[0_0_20px_rgba(34,197,94,0.4)]' : status === ConnectionStatus.CONNECTING ? 'border-yellow-500 text-yellow-400 animate-pulse' : systemAlert ? 'border-red-500 text-red-400 animate-pulse shadow-[0_0_10px_rgba(239,68,68,0.4)] sm:shadow-[0_0_20px_rgba(239,68,68,0.4)]' : isWakeWordListening ? 'border-cyan-500/50 text-cyan-300' : 'border-slate-500/50 text-slate-500'}`}>
                     <div className={`w-1 h-1 sm:w-1.5 sm:h-1.5 rounded-full ${status === ConnectionStatus.CONNECTED ? 'bg-green-400 animate-ping' : 'bg-current'}`}></div>
-                    <span className="hidden xs:inline">{isVoiceActive ? 'UPLINK SECURED' : systemAlert ? 'SYSTEM_OVERRIDE' : isWakeWordListening ? 'LISTENING: "HELLO JARVIS"' : !isWakeWordSupported ? 'TAP INITIALIZE TO START' : 'CORE IN STANDBY'}</span>
-                    <span className="xs:hidden">{isVoiceActive ? 'ACTIVE' : systemAlert ? 'ALERT' : isWakeWordListening ? 'LISTENING' : !isWakeWordSupported ? 'TAP TO START' : 'STANDBY'}</span>
+                    <span className="hidden xs:inline">{isVoiceActive ? 'UPLINK SECURED' : systemAlert ? 'SYSTEM_OVERRIDE' : isWakeWordListening ? 'LISTENING: "HELLO JARVIS"' : !isWakeWordSupported ? 'TAP ORB TO START' : 'CORE IN STANDBY'}</span>
+                    <span className="xs:hidden">{isVoiceActive ? 'ACTIVE' : systemAlert ? 'ALERT' : isWakeWordListening ? 'LISTENING' : !isWakeWordSupported ? 'TAP ORB' : 'STANDBY'}</span>
                   </div>
                   <div className="flex gap-2 sm:gap-4 lg:gap-6 items-center">
                      <div className="text-[7px] sm:text-[8px] lg:text-[10px] text-cyan-800 flex items-center gap-1 sm:gap-1.5 font-orbitron uppercase tracking-wider sm:tracking-widest"><MapPin className="w-2 h-2 sm:w-2.5 sm:h-2.5 lg:w-3 lg:h-3" /> <span className="hidden sm:inline">GPS_LOCKED</span><span className="sm:hidden">GPS</span></div>
