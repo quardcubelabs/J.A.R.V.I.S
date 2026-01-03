@@ -347,6 +347,14 @@ Important Protocol: If the user says "thanks bye", say a very brief, polite fare
     setStatus(ConnectionStatus.DISCONNECTED);
     shouldRestartRecognition.current = true;
     
+    // Log deactivation to system logs
+    setMessages(prev => [...prev, {
+      id: `sys-deactivated-${Date.now()}`,
+      role: 'jarvis',
+      content: "[SYSTEM] Voice uplink terminated. Returning to standby.",
+      timestamp: new Date()
+    }]);
+    
     // Clear any leftover transcripts
     setStandbyTranscript('');
     
@@ -951,6 +959,14 @@ Important Protocol: If the user says "thanks bye", say a very brief, polite fare
       isConnecting = false;
       if (connectionTimeout) clearTimeout(connectionTimeout);
       console.log("JARVIS: Core activation successful.");
+      
+      // Log success to system logs
+      setMessages(prev => [...prev, {
+        id: `sys-connected-${Date.now()}`,
+        role: 'jarvis',
+        content: "[SYSTEM] Neural uplink established. Voice interface ready.",
+        timestamp: new Date()
+      }]);
     } catch (err: any) { 
       console.error("Core initialization failed.", err);
       isConnecting = false;
@@ -1250,17 +1266,13 @@ Important Protocol: If the user says "thanks bye", say a very brief, polite fare
                <div className="absolute top-[130%] sm:top-[140%] lg:top-[150%] left-1/2 -translate-x-1/2 flex flex-col items-center gap-3 sm:gap-4 lg:gap-5 w-full px-2">
                   <div className={`px-3 sm:px-4 lg:px-5 py-1.5 sm:py-2 lg:py-2.5 rounded-full text-[8px] sm:text-[9px] lg:text-[11px] font-orbitron border transition-all duration-500 flex items-center gap-1.5 sm:gap-2 tracking-[0.1em] sm:tracking-[0.15em] lg:tracking-[0.2em] whitespace-nowrap bg-black/70 backdrop-blur-md shadow-lg sm:shadow-2xl ${status === ConnectionStatus.CONNECTED ? 'border-green-500 text-green-400 shadow-[0_0_10px_rgba(34,197,94,0.4)] sm:shadow-[0_0_20px_rgba(34,197,94,0.4)]' : status === ConnectionStatus.CONNECTING ? 'border-yellow-500 text-yellow-400 animate-pulse' : systemAlert ? 'border-red-500 text-red-400 animate-pulse shadow-[0_0_10px_rgba(239,68,68,0.4)] sm:shadow-[0_0_20px_rgba(239,68,68,0.4)]' : isWakeWordListening ? 'border-cyan-500/50 text-cyan-300' : 'border-slate-500/50 text-slate-500'}`}>
                     <div className={`w-1 h-1 sm:w-1.5 sm:h-1.5 rounded-full ${status === ConnectionStatus.CONNECTED ? 'bg-green-400 animate-ping' : 'bg-current'}`}></div>
-                    <span className="hidden xs:inline">{isVoiceActive ? 'UPLINK SECURED' : systemAlert ? 'SYSTEM_OVERRIDE' : isWakeWordListening ? 'LISTENING: "HELLO JARVIS"' : !isWakeWordSupported ? 'TAP ORB TO START' : 'CORE IN STANDBY'}</span>
-                    <span className="xs:hidden">{isVoiceActive ? 'ACTIVE' : systemAlert ? 'ALERT' : isWakeWordListening ? 'LISTENING' : !isWakeWordSupported ? 'TAP ORB' : 'STANDBY'}</span>
+                    <span className="hidden xs:inline">{isVoiceActive ? 'UPLINK SECURED' : status === ConnectionStatus.CONNECTING ? 'CONNECTING...' : systemAlert ? 'SYSTEM_OVERRIDE' : isWakeWordListening ? 'LISTENING: "HELLO JARVIS"' : 'ACOUSTICS ACTIVE'}</span>
+                    <span className="xs:hidden">{isVoiceActive ? 'ACTIVE' : status === ConnectionStatus.CONNECTING ? 'CONNECTING' : systemAlert ? 'ALERT' : isWakeWordListening ? 'LISTENING' : 'READY'}</span>
                   </div>
                   <div className="flex gap-2 sm:gap-4 lg:gap-6 items-center">
                      <div className="text-[7px] sm:text-[8px] lg:text-[10px] text-cyan-800 flex items-center gap-1 sm:gap-1.5 font-orbitron uppercase tracking-wider sm:tracking-widest"><MapPin className="w-2 h-2 sm:w-2.5 sm:h-2.5 lg:w-3 lg:h-3" /> <span className="hidden sm:inline">GPS_LOCKED</span><span className="sm:hidden">GPS</span></div>
                     <div className="h-3 sm:h-4 w-[1px] bg-cyan-500/10"></div>
-                    {isWakeWordSupported ? (
-                      <button onClick={() => { shouldRestartRecognition.current = true; startWakeWordDetection(); }} className="text-[7px] sm:text-[8px] lg:text-[10px] text-cyan-900 hover:text-cyan-400 active:text-cyan-300 transition-colors flex items-center gap-1 sm:gap-1.5 font-orbitron tracking-tight sm:tracking-tighter"><RefreshCw className="w-2 h-2 sm:w-2.5 sm:h-2.5 lg:w-3 lg:h-3" /> <span className="hidden sm:inline">RESET_TRIGGER</span><span className="sm:hidden">RESET</span></button>
-                    ) : (
-                      <span className="text-[7px] sm:text-[8px] lg:text-[10px] text-cyan-700 font-orbitron tracking-tight">MANUAL MODE</span>
-                    )}
+                    <button onClick={() => { shouldRestartRecognition.current = true; startWakeWordDetection(); }} className="text-[7px] sm:text-[8px] lg:text-[10px] text-cyan-900 hover:text-cyan-400 active:text-cyan-300 transition-colors flex items-center gap-1 sm:gap-1.5 font-orbitron tracking-tight sm:tracking-tighter"><RefreshCw className="w-2 h-2 sm:w-2.5 sm:h-2.5 lg:w-3 lg:h-3" /> <span className="hidden sm:inline">RESET_TRIGGER</span><span className="sm:hidden">RESET</span></button>
                   </div>
                </div>
             </div>
@@ -1277,15 +1289,30 @@ Important Protocol: If the user says "thanks bye", say a very brief, polite fare
             </div>
             <div className="flex-1 overflow-y-auto p-2 sm:p-3 lg:p-4 space-y-2 sm:space-y-3 lg:space-y-4 font-mono text-[8px] sm:text-[9px] lg:text-[10px] opacity-70 scrollbar-hide">
               <div className="space-y-1.5 sm:space-y-2">
-                {isWakeWordListening && (
-                  <div className="p-1.5 sm:p-2 border border-cyan-500/20 bg-cyan-500/5 rounded animate-pulse">
-                     <p className="text-[7px] sm:text-[8px] text-cyan-600 mb-0.5 sm:mb-1 font-orbitron uppercase tracking-wider sm:tracking-widest">Neural Monitor:</p>
-                     <p className="text-cyan-400 italic text-[8px] sm:text-[9px]">"{standbyTranscript || 'Waiting...'}"</p>
+                {/* Live Status Indicators */}
+                {status === ConnectionStatus.CONNECTING && (
+                  <div className="p-1.5 sm:p-2 border border-yellow-500/30 bg-yellow-500/10 rounded animate-pulse">
+                     <p className="text-[7px] sm:text-[8px] text-yellow-500 font-orbitron uppercase tracking-wider">⚡ Establishing Neural Link...</p>
                   </div>
                 )}
-                <p className="text-cyan-600 italic">[{new Date().toLocaleTimeString()}] System: Active.</p>
-                {messages.slice(-5).map(m => (
-                  <p key={m.id} className={`${m.role === 'user' ? 'text-cyan-300' : 'text-slate-100'} whitespace-pre-wrap break-words`}>
+                {isVoiceActive && (
+                  <div className="p-1.5 sm:p-2 border border-green-500/30 bg-green-500/10 rounded">
+                     <p className="text-[7px] sm:text-[8px] text-green-400 font-orbitron uppercase tracking-wider flex items-center gap-1">
+                       <span className="w-1.5 h-1.5 bg-green-400 rounded-full animate-pulse"></span> Voice Uplink Active
+                     </p>
+                  </div>
+                )}
+                {isWakeWordListening && !isVoiceActive && (
+                  <div className="p-1.5 sm:p-2 border border-cyan-500/20 bg-cyan-500/5 rounded animate-pulse">
+                     <p className="text-[7px] sm:text-[8px] text-cyan-600 mb-0.5 sm:mb-1 font-orbitron uppercase tracking-wider sm:tracking-widest">Neural Monitor:</p>
+                     <p className="text-cyan-400 italic text-[8px] sm:text-[9px]">"{standbyTranscript || 'Listening for wake word...'}"</p>
+                  </div>
+                )}
+                {/* System Status */}
+                <p className="text-cyan-600 italic">[{new Date().toLocaleTimeString()}] System: {isVoiceActive ? 'Voice Mode Active' : status === ConnectionStatus.CONNECTING ? 'Connecting...' : 'Standby'}</p>
+                {/* Message History - Show more messages */}
+                {messages.slice(-8).map(m => (
+                  <p key={m.id} className={`${m.role === 'user' ? 'text-cyan-300' : m.content.includes('[ERROR]') ? 'text-red-400' : m.content.includes('[SYSTEM]') ? 'text-yellow-400' : 'text-slate-100'} whitespace-pre-wrap break-words`}>
                     [{new Date(m.timestamp).toLocaleTimeString()}] {m.role.toUpperCase()}: {m.content}
                   </p>
                 ))}
