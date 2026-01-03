@@ -1016,35 +1016,81 @@ Important Protocol: If the user says "thanks bye", say a very brief, polite fare
 
       const centerX = canvas.width / 2;
       const centerY = canvas.height / 2;
-      const baseRadius = canvas.width * 0.35;
+      const baseRadius = canvas.width * 0.25;
       const colorRGB = isVoiceActive ? '34, 197, 94' : '6, 182, 212';
-      const scaleFactor = 1 + (activeLevel / 128);
+      const scaleFactor = 1 + (activeLevel / 150);
 
+      // Draw smooth circular waveform instead of boxed lines
       ctx.beginPath();
-      ctx.strokeStyle = `rgba(${colorRGB}, 0.5)`;
+      ctx.strokeStyle = `rgba(${colorRGB}, 0.6)`;
       ctx.lineWidth = 2;
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
 
-      for (let i = 0; i < bufferLength; i++) {
-        const value = dataArray[i] / 255.0;
-        const angle = (i / bufferLength) * Math.PI * 2;
-        const xStart = centerX + Math.cos(angle) * (baseRadius * 0.9);
-        const yStart = centerY + Math.sin(angle) * (baseRadius * 0.9);
-        const xEnd = centerX + Math.cos(angle) * (baseRadius + value * 60 * scaleFactor);
-        const yEnd = centerY + Math.sin(angle) * (baseRadius + value * 60 * scaleFactor);
-        
-        if (Number.isFinite(xStart) && Number.isFinite(yStart) && Number.isFinite(xEnd) && Number.isFinite(yEnd)) {
-          ctx.moveTo(xStart, yStart);
-          ctx.lineTo(xEnd, yEnd);
-        }
+      // Create smooth circular wave
+      const points: {x: number, y: number}[] = [];
+      const numPoints = Math.min(bufferLength, 64);
+      
+      for (let i = 0; i <= numPoints; i++) {
+        const index = Math.floor((i / numPoints) * bufferLength) % bufferLength;
+        const value = dataArray[index] / 255.0;
+        const angle = (i / numPoints) * Math.PI * 2;
+        const waveAmplitude = value * 40 * scaleFactor;
+        const radius = baseRadius + waveAmplitude;
+        const x = centerX + Math.cos(angle) * radius;
+        const y = centerY + Math.sin(angle) * radius;
+        points.push({x, y});
       }
+
+      // Draw smooth curve through points
+      if (points.length > 2) {
+        ctx.moveTo(points[0].x, points[0].y);
+        for (let i = 1; i < points.length - 1; i++) {
+          const xc = (points[i].x + points[i + 1].x) / 2;
+          const yc = (points[i].y + points[i + 1].y) / 2;
+          ctx.quadraticCurveTo(points[i].x, points[i].y, xc, yc);
+        }
+        ctx.quadraticCurveTo(
+          points[points.length - 1].x, 
+          points[points.length - 1].y, 
+          points[0].x, 
+          points[0].y
+        );
+      }
+      ctx.closePath();
       ctx.stroke();
 
+      // Draw second wave ring (outer glow effect)
+      ctx.beginPath();
+      ctx.strokeStyle = `rgba(${colorRGB}, 0.3)`;
+      ctx.lineWidth = 1;
+      
+      for (let i = 0; i <= numPoints; i++) {
+        const index = Math.floor((i / numPoints) * bufferLength) % bufferLength;
+        const value = dataArray[index] / 255.0;
+        const angle = (i / numPoints) * Math.PI * 2;
+        const waveAmplitude = value * 55 * scaleFactor;
+        const radius = baseRadius + waveAmplitude;
+        const x = centerX + Math.cos(angle) * radius;
+        const y = centerY + Math.sin(angle) * radius;
+        
+        if (i === 0) {
+          ctx.moveTo(x, y);
+        } else {
+          ctx.lineTo(x, y);
+        }
+      }
+      ctx.closePath();
+      ctx.stroke();
+
+      // Inner glow circle
       try {
-        const radiusInner = Math.max(0.1, baseRadius * 0.5);
-        const radiusOuter = Math.max(radiusInner + 1, baseRadius * scaleFactor);
+        const radiusInner = Math.max(0.1, baseRadius * 0.6);
+        const radiusOuter = Math.max(radiusInner + 1, baseRadius + 30 * scaleFactor);
         const grd = ctx.createRadialGradient(centerX, centerY, radiusInner, centerX, centerY, radiusOuter);
-        grd.addColorStop(0, `rgba(${colorRGB}, 0)`);
-        grd.addColorStop(1, `rgba(${colorRGB}, 0.1)`);
+        grd.addColorStop(0, `rgba(${colorRGB}, 0.05)`);
+        grd.addColorStop(0.5, `rgba(${colorRGB}, 0.1)`);
+        grd.addColorStop(1, `rgba(${colorRGB}, 0)`);
         ctx.fillStyle = grd;
         ctx.beginPath();
         ctx.arc(centerX, centerY, radiusOuter, 0, Math.PI * 2);
