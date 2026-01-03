@@ -1101,7 +1101,20 @@ Important Protocol: If the user says "thanks bye", say a very brief, polite fare
         </button>
       </div>
 
-      <div className="relative z-10 flex flex-col lg:flex-row h-full w-full p-2 sm:p-4 lg:p-6 gap-2 sm:gap-4 lg:gap-6 pt-12 sm:pt-16 lg:pt-6 overflow-hidden landscape-compact">
+      {/* Mobile Floating INITIALIZE Button - Always visible on mobile */}
+      <div className="lg:hidden fixed bottom-0 left-0 right-0 p-3 sm:p-4 bg-slate-950/95 backdrop-blur-md border-t border-cyan-500/20 z-50 safe-area-bottom">
+        <button 
+          disabled={status === ConnectionStatus.CONNECTING}
+          onClick={isVoiceActive ? deactivateVoice : activateVoice} 
+          className={`w-full py-3 sm:py-4 rounded-xl font-orbitron flex items-center justify-center gap-2 sm:gap-3 transition-all duration-500 shadow-xl relative overflow-hidden group border-2 ${isVoiceActive ? 'bg-green-600/80 border-green-400 text-white shadow-[0_0_20px_rgba(34,197,94,0.5)]' : 'bg-cyan-900/30 border-cyan-400/50 text-cyan-300 hover:bg-cyan-500/20 active:bg-cyan-500/30'} ${status === ConnectionStatus.CONNECTING ? 'opacity-50 cursor-not-allowed' : ''}`}
+        >
+          {isVoiceActive ? <MicOff className="w-5 h-5 animate-pulse" /> : <Mic className="w-5 h-5" />}
+          <span className="tracking-[0.15em] sm:tracking-[0.2em] text-xs sm:text-sm font-bold uppercase">{isVoiceActive ? 'TERMINATE' : status === ConnectionStatus.CONNECTING ? 'CONNECTING...' : 'INITIALIZE'}</span>
+          {isVoiceActive && <div className="absolute inset-0 bg-white/10 animate-ping pointer-events-none"></div>}
+        </button>
+      </div>
+
+      <div className="relative z-10 flex flex-col lg:flex-row h-full w-full p-2 sm:p-4 lg:p-6 gap-2 sm:gap-4 lg:gap-6 pt-12 sm:pt-16 lg:pt-6 pb-20 lg:pb-6 overflow-hidden landscape-compact">
         
         {/* Left Sidebar - Stats & Files */}
         <div className={`flex-col w-full lg:w-72 xl:w-80 gap-2 sm:gap-4 transition-all duration-500 ${isMobileMenuOpen ? 'flex absolute inset-0 bg-slate-950/98 z-40 p-4 sm:p-6 pt-16 sm:pt-20 overflow-y-auto' : (!showStats && !isMobileMenuOpen) ? 'hidden' : 'hidden lg:flex'}`}>
