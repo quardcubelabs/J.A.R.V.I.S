@@ -20,7 +20,7 @@ import {
   Menu, 
   X 
 } from 'lucide-react';
-import { GoogleGenAI, Modality, LiveServerMessage, Blob, FunctionDeclaration, Type } from '@google/genai';
+import { GoogleGenAI, Modality, LiveServerMessage, Blob as GenAIBlob, FunctionDeclaration, Type } from '@google/genai';
 import { ConnectionStatus, Message, SystemStats } from './types';
 import { encode, decode, decodeAudioData, downsample } from './utils/audioHelpers';
 import { createAIService } from './utils/aiService';
@@ -394,7 +394,7 @@ const App: React.FC = () => {
                     const int16 = new Int16Array(downsampled.length);
                     for (let i = 0; i < downsampled.length; i++) int16[i] = downsampled[i] * 32768;
                     
-                    const pcmBlob: Blob = { data: encode(new Uint8Array(int16.buffer)), mimeType: 'audio/pcm;rate=16000' };
+                    const pcmBlob: GenAIBlob = { data: encode(new Uint8Array(int16.buffer)), mimeType: 'audio/pcm;rate=16000' };
                     sessionPromise.then(s => {
                         if (isSessionActiveRef.current) {
                             try { s.sendRealtimeInput({ media: pcmBlob }); } catch (err) { }
